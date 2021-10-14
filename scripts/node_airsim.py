@@ -10,6 +10,8 @@ from geometry_msgs.msg import Vector3
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 
+from scipy.spatial.transform import Rotation as R
+
 import airsim
 import numpy as np
 import cv2
@@ -24,8 +26,7 @@ client.takeoffAsync().join()
 
 
 
-
-filter_coeff = 0.5
+filter_coeff = 0.9
 
 # temp
 import pprint
@@ -71,7 +72,6 @@ def run_airsim_node():
     # Running rate at 10 Hz
     rate=rospy.Rate(10)
 
-
     vx = 0
     vy = 0
     vz = 0
@@ -83,6 +83,12 @@ def run_airsim_node():
     while not rospy.is_shutdown():
         # Get state value
         state = client.getMultirotorState()
+        s = pprint.pformat(state)
+        print("state: %s" % s)
+
+        state_orientation = state.kinematics_estimated.orientation
+        body_angle = R.from_quat(state_orientation.to_numpy_array()).as_euler('zxy', degrees=False)
+        body_yaw_angle = body_angle[0] - np.pi
 
         # Get Camera Images
         responses = client.simGetImages([airsim.ImageRequest("0", airsim.ImageType.Scene, False, False)])
@@ -93,9 +99,9 @@ def run_airsim_node():
 
         # Send command velocity to Airsim
         if KEY_CMD_RECEIVED is not None:
-            cmd_vx = KEY_CMD_RECEIVED.linear.x
-            cmd_vy = KEY_CMD_RECEIVED.linear.y
-            cmd_vz = KEY_CMD_RECEIVED.linear.z*-1
+            cmd_vx = -KEY_CMD_RECEIVED.linear.x
+            cmd_vy = -KEY_CMD_RECEIVED.linear.y
+            cmd_vz = -KEY_CMD_RECEIVED.linear.z
             cmd_yaw = KEY_CMD_RECEIVED.angular.z*5
         else:
             cmd_vx = 0
@@ -107,12 +113,22 @@ def run_airsim_node():
         vy = filter_coeff*cmd_vy + (1-filter_coeff)*vy
         vz = filter_coeff*cmd_vz + (1-filter_coeff)*vz
         yaw_rate = filter_coeff*cmd_yaw + (1-filter_coeff)*yaw_rate
-        client.moveByVelocityAsync(vx, vy, vz, 0.1, airsim.DrivetrainType.MaxDegreeOfFreedom, airsim.YawMode(True, yaw_rate))
+
+        print('body_yaw_angle', body_yaw_angle)
+
+        vx_body = float(np.cos(body_yaw_angle)*vx - np.sin(body_yaw_angle)*vy)
+        vy_body = float(np.sin(body_yaw_angle)*vx + np.cos(body_yaw_angle)*vy)
+
+
+        client.moveByVelocityAsync(vx_body, vy_body, vz, 0.1, airsim.DrivetrainType.MaxDegreeOfFreedom, airsim.YawMode(True, yaw_rate))
 
         # Send enviornment command to Airsim
         if (KEY_CMD_RECEIVED is not None) and (KEY_CMD_RECEIVED.angular.x>0):
             print('Force Taking Off Command!')
+            client.confirmConnection()
+            client.enableApiControl(True)
             client.takeoffAsync().join()
+           
         elif (KEY_CMD_RECEIVED is not None) and (KEY_CMD_RECEIVED.angular.x<0):
             print('Emergency Landing!')
             client.landAsync().join()
