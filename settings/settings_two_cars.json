@@ -1,0 +1,29 @@
+{
+	"SettingsVersion": 1.2,
+  "SimMode": "Car",
+  "CameraDefaults": {
+    "CaptureSettings": [
+      {
+        "ImageType": 0,
+        "Width": 448,
+        "Height": 448,
+        "FOV_Degrees": 28,
+        "DepthOfFieldFstop": 2.8,
+        "DepthOfFieldFocalDistance": 200.0, 
+        "DepthOfFieldFocalRegion": 200.0,
+        "TargetGamma": 1.5
+      }
+  ]
+},
+	"ViewMode": "SpringArmChase",
+	"Vehicles": {
+		"Car1": {
+		  "VehicleType": "PhysXCar",
+      "X": 0, "Y": 0, "Z": 1.0, "Yaw":90
+		},
+		"Car2": {
+		  "VehicleType": "PhysXCar",
+      "X": 0, "Y": 10, "Z": 1.0, "Yaw":90
+		}
+  }
+}

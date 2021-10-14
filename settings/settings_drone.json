@@ -1,0 +1,19 @@
+{
+  "SeeDocsAt": "https://github.com/Microsoft/AirSim/blob/master/docs/settings.md",
+  "SettingsVersion": 1.2,
+  "SimMode": "Multirotor",
+  "CameraDefaults": {
+      "CaptureSettings": [
+        {
+          "ImageType": 0,
+          "Width": 448,
+          "Height": 448,
+          "FOV_Degrees": 28,
+          "DepthOfFieldFstop": 2.8,
+          "DepthOfFieldFocalDistance": 200.0, 
+          "DepthOfFieldFocalRegion": 200.0,
+          "TargetGamma": 1.5
+        }
+    ]
+  }
+}
