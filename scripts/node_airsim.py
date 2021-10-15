@@ -25,6 +25,8 @@ client.takeoffAsync().join()
 
 
 
+FREQ_NODE = 20
+
 
 filter_coeff = 0.9
 
@@ -69,8 +71,8 @@ def run_airsim_node():
     # a bridge from cv2 image to ROS image
     mybridge = CvBridge()
 
-    # Running rate at 10 Hz
-    rate=rospy.Rate(10)
+    # Running rate
+    rate=rospy.Rate(FREQ_NODE)
 
     vx = 0
     vy = 0
@@ -120,7 +122,7 @@ def run_airsim_node():
         vy_body = float(np.sin(body_yaw_angle)*vx + np.cos(body_yaw_angle)*vy)
 
 
-        client.moveByVelocityAsync(vx_body, vy_body, vz, 0.1, airsim.DrivetrainType.MaxDegreeOfFreedom, airsim.YawMode(True, yaw_rate))
+        client.moveByVelocityAsync(vx_body, vy_body, vz, 1/FREQ_NODE, airsim.DrivetrainType.MaxDegreeOfFreedom, airsim.YawMode(True, yaw_rate))
 
         # Send enviornment command to Airsim
         if (KEY_CMD_RECEIVED is not None) and (KEY_CMD_RECEIVED.angular.x>0):

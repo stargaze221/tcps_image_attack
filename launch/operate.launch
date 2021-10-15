@@ -1,0 +1,6 @@
+<launch>
+    <node pkg="tcps_image_attack" type="node_airsim.py" name="airsim_node" output="screen">
+    </node>
+    <node pkg="tcps_image_attack" type="node_yolo.py" name="yolo_node" output="screen">
+    </node>
+</launch>
