@@ -8,10 +8,10 @@
 #   * Siegfried-A. Gevatter
 
 import curses
-
 import rospy
 from geometry_msgs.msg import Twist
-from std_msgs.msg import Float32
+from std_msgs.msg import Float32, Bool
+
 
 class TextWindow():
 
@@ -53,11 +53,24 @@ class TextWindow():
 
 
 class SimpleKeyTeleop():
+
+    movement_bindings = {
+        curses.KEY_UP:    (+1,  0,  0,  0,  0,  0,  0),  # +x forward
+        curses.KEY_DOWN:  (-1,  0,  0,  0,  0,  0,  0),  # -x backward
+        curses.KEY_LEFT:  ( 0, -1,  0,  0,  0,  0,  0),  # +y 
+        curses.KEY_RIGHT: ( 0, +1,  0,  0,  0,  0,  0),  # -y
+        ord('w'):         ( 0,  0, +1,  0,  0,  0,  0),  # +z
+        ord('s'):         ( 0,  0, -1,  0,  0,  0,  0),  # -z
+        ord('a'):         ( 0,  0,  0,  0,  0, -1,  0),  # +yaw
+        ord('d'):         ( 0,  0,  0,  0,  0, +1,  0),  # -yaw
+        ord('e'):         ( 0,  0,  0,  1,  0,  0,  0),  # toggle take-off / landing
+        ord('c'):         ( 0,  0,  0,  2,  0,  0,  0),  # toggle tracking control on / off
+        ord('k'):         ( 0,  0,  0,  3,  0,  0,  0)   # toggle image attack on / off
+    }
+
     def __init__(self, interface):
         self._interface = interface
-        self._pub_cmd = rospy.Publisher('/key_teleop/vel_cmd_body_frame', Twist)
-        self._pub_cmd_attack = rospy.Publisher('/key_teleop/attack_on_off', Float32)
-
+        self._pub_vel_cmd = rospy.Publisher('/key_teleop/vel_cmd_body_frame', Twist)
         self._hz = rospy.get_param('~hz', 10)
 
         self._forward_rate = rospy.get_param('~forward_rate', 1.0)
@@ -71,22 +84,21 @@ class SimpleKeyTeleop():
         self._linear = (0, 0, 0)
         self.m = -1
 
-    movement_bindings = {
-        curses.KEY_UP:    (+1,  0,  0,  0,  0,  0,  0),  # +x forward
-        curses.KEY_DOWN:  (-1,  0,  0,  0,  0,  0,  0),  # -x backward
-        curses.KEY_LEFT:  ( 0, -1,  0,  0,  0,  0,  0),  # +y 
-        curses.KEY_RIGHT: ( 0, +1,  0,  0,  0,  0,  0),  # -y
-        ord('w'):         ( 0,  0, +1,  0,  0,  0,  0),  # +z
-        ord('s'):         ( 0,  0, -1,  0,  0,  0,  0),  # -z
-        ord('a'):         ( 0,  0,  0,  0,  0, -1,  0),  # +yaw
-        ord('d'):         ( 0,  0,  0,  0,  0, +1,  0),  # -yaw
-        ord('e'):         ( 0,  0,  0,  1,  0,  0,  0),  # take off
-        ord('q'):         ( 0,  0,  0, -1,  0,  0,  0),  # landing
-        ord('c'):         ( 0,  0,  0,  0,  1,  0,  0),  # engage the controller
-        ord('z'):         ( 0,  0,  0,  0, -1,  0,  0),   # disengage the controller
-        ord('m'):         ( 0,  0,  0,  0,  0,  0,  1),  # engage the attacker 
-        ord('n'):         ( 0,  0,  0,  0,  0,  0, -1)   # disengage the attacker
-    }
+        ### Other commands ###
+        self._tracking_control_bool = Bool()
+        self._tracking_control_bool.data=False
+        self._taking_off_bool = Bool()
+        self._taking_off_bool.data = False
+        self._landing_bool = Bool()
+        self._landing_bool.data = False
+        self._image_attack_bool = Bool()
+        self._image_attack_bool.data=False
+
+        self._pub_tracking_control_bool = rospy.Publisher('/key_teleop/tracking_control_bool', Bool)
+        self._pub_taking_off_bool = rospy.Publisher('/key_teleop/taking_off_bool', Bool)
+        self._pub_landing_bool = rospy.Publisher('/key_teleop/landing_bool', Bool)
+        self._pub_image_attack_bool = rospy.Publisher('/key_teleop/image_attack_bool', Bool)
+    
 
     def run(self):
         rate = rospy.Rate(self._hz)
@@ -115,7 +127,7 @@ class SimpleKeyTeleop():
         now = rospy.get_time()
         keys = []
         for a in self._last_pressed:
-            if now - self._last_pressed[a] < 0.4:
+            if now - self._last_pressed[a] < 0.2:
                 keys.append(a)
         
         vx, vy, vz, wx, wy, wz = (0, 0, 0, 0, 0, 0)
@@ -123,6 +135,17 @@ class SimpleKeyTeleop():
 
         for k in keys:
             vx, vy, vz, wx, wy, wz, attack_on_off = self.movement_bindings[k]
+
+        print(vx, vy, vz, wx, wy, wz)
+
+        if wx == 1:   # toggle take-off / landing
+            self._taking_off_bool.data = not(self._taking_off_bool.data)
+            self._landing_bool.data = not(self._taking_off_bool.data)
+        elif wx == 2:   # toggle tracking control on / off
+            self._tracking_control_bool.data = not(self._tracking_control_bool.data)
+        elif wx == 3:   # toggle image attack on / off
+            self._image_attack_bool.data = not(self._image_attack_bool.data)
+
 
         if vx > 0:
             vx = vx * self._forward_rate
@@ -152,18 +175,19 @@ class SimpleKeyTeleop():
         self._interface.write_line(2, 'Left/Right     : %f' % (self._linear[1]))
         self._interface.write_line(3, 'Up/Down        : %f' % (self._linear[2]))
         self._interface.write_line(4, 'Angular        : %f' % (self._angular[2]))
-        self._interface.write_line(6, 'Use arrow keys to move, e to takeoff, and q to land.')
-        self._interface.write_line(7, 'To use the controller, c to engage, and z to disengage.')
-        self._interface.write_line(8, 'To add the img attack, m to engage, and n to disengage.')
-        self._interface.write_line(9, 'Use o to close the window.')
+        self._interface.write_line(5, 'Use c to toggle tracking controller on/off: %s' %(self._tracking_control_bool.data))
+        self._interface.write_line(6, 'Use e to toggle takeoff: %s and landing: %s' %(self._taking_off_bool, self._landing_bool.data))
+        self._interface.write_line(7, 'Use k to toggle image attack: %s' %(self._image_attack_bool.data))
+        self._interface.write_line(8, 'Use o to close the window.')
         self._interface.refresh()
 
         velcmd = self._get_velcmd(self._linear, self._angular)
-        self._pub_cmd.publish(velcmd)
+        self._pub_vel_cmd.publish(velcmd)
 
-        attack_cmd = Float32()
-        attack_cmd = self._attack_on_off
-        self._pub_cmd_attack.publish(attack_cmd)
+        self._pub_tracking_control_bool.publish(self._tracking_control_bool)
+        self._pub_taking_off_bool.publish(self._taking_off_bool)
+        self._pub_landing_bool.publish(self._landing_bool)
+        self._pub_image_attack_bool.publish(self._image_attack_bool)
 
 
 def main(stdscr):
