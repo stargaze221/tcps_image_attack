@@ -10,7 +10,7 @@
 import curses
 import rospy
 from geometry_msgs.msg import Twist
-from std_msgs.msg import Float32, Bool
+from std_msgs.msg import Float32, Bool, Int32
 
 
 class TextWindow():
@@ -65,7 +65,8 @@ class SimpleKeyTeleop():
         ord('d'):         ( 0,  0,  0,  0,  0, +1,  0),  # -yaw
         ord('e'):         ( 0,  0,  0,  1,  0,  0,  0),  # toggle take-off / landing
         ord('c'):         ( 0,  0,  0,  2,  0,  0,  0),  # toggle tracking control on / off
-        ord('k'):         ( 0,  0,  0,  3,  0,  0,  0)   # toggle image attack on / off
+        ord('k'):         ( 0,  0,  0,  3,  0,  0,  0),   # toggle image attack on / off
+        ord('r'):         ( 0,  0,  0,  0,  1,  0,  0)   # reset environment
     }
 
     def __init__(self, interface):
@@ -94,10 +95,15 @@ class SimpleKeyTeleop():
         self._image_attack_bool = Bool()
         self._image_attack_bool.data=False
 
+        ### High level command ###
+        self._environment_command = Int32()
+        self._environment_command.data = int(0)
+
         self._pub_tracking_control_bool = rospy.Publisher('/key_teleop/tracking_control_bool', Bool)
         self._pub_taking_off_bool = rospy.Publisher('/key_teleop/taking_off_bool', Bool)
         self._pub_landing_bool = rospy.Publisher('/key_teleop/landing_bool', Bool)
         self._pub_image_attack_bool = rospy.Publisher('/key_teleop/image_attack_bool', Bool)
+        self._pub_highlvl_environment_command_int = rospy.Publisher('/key_teleop/highlvl_environment_command', Int32)
     
 
     def run(self):
@@ -146,6 +152,8 @@ class SimpleKeyTeleop():
         elif wx == 3:   # toggle image attack on / off
             self._image_attack_bool.data = not(self._image_attack_bool.data)
 
+        ### High-level environment command ###
+        self._environment_command.data = int(wy)
 
         if vx > 0:
             vx = vx * self._forward_rate
@@ -188,6 +196,7 @@ class SimpleKeyTeleop():
         self._pub_taking_off_bool.publish(self._taking_off_bool)
         self._pub_landing_bool.publish(self._landing_bool)
         self._pub_image_attack_bool.publish(self._image_attack_bool)
+        self._pub_highlvl_environment_command_int.publish(self._environment_command)
 
 
 def main(stdscr):

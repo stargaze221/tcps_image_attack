@@ -4,7 +4,7 @@ import rospy
 
 from std_msgs.msg import Float32MultiArray        # See https://gist.github.com/jarvisschultz/7a886ed2714fac9f5226
 from std_msgs.msg import MultiArrayDimension      # See http://docs.ros.org/api/std_msgs/html/msg/MultiArrayLayout.html
-from std_msgs.msg import Bool
+from std_msgs.msg import Bool, Int32
 
 from geometry_msgs.msg import Twist
 from geometry_msgs.msg import Vector3
@@ -57,6 +57,11 @@ def fnc_callback4(msg):
     global TRACKING_ON_CMD_RECEIVED
     TRACKING_ON_CMD_RECEIVED = msg
 
+ENVIRONMENT_CMD_RECEIVED = None
+def fnc_callback5(msg):
+    global ENVIRONMENT_CMD_RECEIVED
+    ENVIRONMENT_CMD_RECEIVED = msg
+
 
 
 def run_airsim_node():
@@ -76,6 +81,9 @@ def run_airsim_node():
     sub_bool_cmd_taking_off = rospy.Subscriber('/key_teleop/taking_off_bool', Bool, fnc_callback2)
     sub_bool_cmd_landing = rospy.Subscriber('/key_teleop/landing_bool', Bool, fnc_callback3)
     sub_bool_cmd_tracking_on = rospy.Subscriber('/key_teleop/tracking_control_bool', Bool, fnc_callback4)
+    sub_int_cmd_highlvl_environment = rospy.Subscriber('/key_teleop/highlvl_environment_command', Int32, fnc_callback5)
+
+    
 
     # publishers init.
     pub_camera_frame = rospy.Publisher('/airsim_node/camera_frame', Image, queue_size=1)
@@ -156,8 +164,6 @@ def run_airsim_node():
             cmd_vz += -CTL_CMD_RECEIVED.y
             cmd_yaw += 0
 
-            print(cmd_vx, cmd_vy, cmd_vz)
-
         # First order filter for smoothing
         vx = (1-filter_coeff)*cmd_vx + filter_coeff*vx
         vy = (1-filter_coeff)*cmd_vy + filter_coeff*vy
@@ -181,6 +187,22 @@ def run_airsim_node():
             print('Emergency Landing!')
             client.landAsync().join()
             ON_FLIGHT = False
+
+        elif ENVIRONMENT_CMD_RECEIVED is not None and ENVIRONMENT_CMD_RECEIVED.data == 1:
+            print('Reset!')
+            client.reset()
+            pose = client.simGetVehiclePose("")
+            pose.position.z_val += np.random.uniform(-5, -2)    #random [-5, 2]#
+            pose.position.y_val += np.random.uniform(-5.0, 5.0) #random [-2.5, 2.5]# 
+
+            client.simSetVehiclePose(pose, False)
+            
+            # tmp = client.simGetObjectPose("BP_Hatchback_2")
+            # print('tmp', tmp)
+            
+            client.confirmConnection()
+            client.enableApiControl(True)
+            #client.takeoffAsync().join()
 
         # Sleep for Set Rate
         rate.sleep()
