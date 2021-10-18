@@ -5,4 +5,6 @@
     </node>
     <node pkg="tcps_image_attack" type="node_controller.py" name="controller_node" output="screen">
     </node>
+    <node pkg="tcps_image_attack" type="node_image_attack_trainer.py" name="image_attack_train_node" output="screen">
+    </node>
 </launch>
