@@ -1,21 +1,9 @@
 #!/usr/bin/env python3
-
-'''
-1. Add images to a memory
-2. Generate or receive target coordinate to move the bounding box
-3. 
-
-'''
-
-
-
-
-
-#!/usr/bin/env python3
 import rospy
 import torch
 import numpy as np
 import PIL
+import os
 
 from std_msgs.msg import Float32
 from std_msgs.msg import Float32MultiArray        # See https://gist.github.com/jarvisschultz/7a886ed2714fac9f5226
@@ -23,16 +11,24 @@ from std_msgs.msg import MultiArrayDimension      # See http://docs.ros.org/api/
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
 
-from memory import ImageBuffer
+from memory import ImageBuffer, ImageTargetBuffer
+from model import ImageAttackNetwork
+
+from agent import ImageAttackTraniner
+
+from setting_params import WRITER
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-YOLO_MODEL = torch.hub.load('ultralytics/yolov5', 'yolov5m', pretrained=True, channels=3, classes=80, autoshape=True).to(DEVICE).eval()
+
 N_MEMORY_SIZE = 10000
-N_MINIBATCH = 8
-IMAGE_MEMORY = ImageBuffer(N_MEMORY_SIZE)
+N_MINIBATCH = 4
 
+IMAGE_TGT_MEMORY = ImageTargetBuffer(N_MEMORY_SIZE)
+IMAGEATTACKNN = ImageAttackNetwork(h=448, w=448, action_dim=4).to(DEVICE)
 
-FREQ_NODE = 10
+FREQ_NODE = 5
+N_LOG_INTERVAL = 5
+
 
 ### ROS Subscriber Callback ###
 IMAGE_RECEIVED = None
@@ -44,56 +40,66 @@ if __name__=='__main__':
 
     rospy.init_node('image_attack_train_node')   # rosnode node initialization
     sub_image = rospy.Subscriber('/airsim_node/camera_frame', Image, fnc_img_callback)   # subscriber init.
-    # pub_yolo_prediction = rospy.Publisher('/yolo_node/yolo_predictions', Float32MultiArray, queue_size=1)   # publisher1 initialization.
-    # pub_yolo_boundingbox_video = rospy.Publisher('/yolo_node/yolo_pred_frame', Image, queue_size=1)   # publisher2 initialization.
     rate=rospy.Rate(FREQ_NODE)   # Running rate at 20 Hz
+    agent = ImageAttackTraniner()
 
-    # a bridge from cv2 image to ROS image
-    # mybridge = CvBridge()
+
+    n_iteration = 0
 
     
-
-
-
-    # msg init. the msg is to send out numpy array.
-    # msg_mat = Float32MultiArray()
-    # msg_mat.layout.dim.append(MultiArrayDimension())
-    # msg_mat.layout.dim.append(MultiArrayDimension())
-    # msg_mat.layout.dim[0].label = "height"
-    # msg_mat.layout.dim[1].label = "width"
 
     ##############################
     ### Instructions in a loop ###
     ##############################
     while not rospy.is_shutdown():
 
+        #print('while not rospy.is_shutdown', os.getcwd())
+        #scount += 1
+
         if IMAGE_RECEIVED is not None:
-            ### Use Yolo Model with Recived Image 
+            # Add data into memory
             np_im = np.frombuffer(IMAGE_RECEIVED.data, dtype=np.uint8).reshape(IMAGE_RECEIVED.height, IMAGE_RECEIVED.width, -1)
+            act = np.array([-0.5, -0.5, -0.5, -0.5])  # or np.random.rand(4)
 
-            IMAGE_MEMORY.add(np_im)
-            minibatch = IMAGE_MEMORY.sample(N_MINIBATCH)
-            print(len(minibatch))
+            #act = np.random.rand(4)
+            
+            IMAGE_TGT_MEMORY.add(np_im, act)
 
-            results = YOLO_MODEL(minibatch)
+            # Sample data from the memory
+            minibatch_img, minibatch_act = IMAGE_TGT_MEMORY.sample(N_MINIBATCH) # list of numpy arrays
+            minibatch_img = np.array(minibatch_img).astype(np.float32) # cast it into a numpy array
+            
+            ####################################################
+            ## CAL THE LOSS FUNCTION & A STEP OF GRAD DESCENT ##
+            ####################################################
+            agent.update(minibatch_img, minibatch_act)
 
-            ### Publish the prediction results in results.xyxy[0]) ###
-            #                   x1           y1           x2           y2   confidence        class
-            # tensor([[7.50637e+02, 4.37279e+01, 1.15887e+03, 7.08682e+02, 8.18137e-01, 0.00000e+00],
-            #         [9.33597e+01, 2.07387e+02, 1.04737e+03, 7.10224e+02, 5.78011e-01, 0.00000e+00],
-            #         [4.24503e+02, 4.29092e+02, 5.16300e+02, 7.16425e+02, 5.68713e-01, 2.70000e+01]])
-            # prediction_np = results.xyxy[0].cpu().numpy()
-            # msg_mat.layout.dim[0].size = prediction_np.shape[0]
-            # msg_mat.layout.dim[1].size = prediction_np.shape[1]
-            # msg_mat.layout.dim[0].stride = prediction_np.shape[0]*prediction_np.shape[1]
-            # msg_mat.layout.dim[1].stride = prediction_np.shape[1]
-            # msg_mat.layout.data_offset = 0
-            # msg_mat.data = prediction_np.flatten().tolist()
-            # pub_yolo_prediction.publish(msg_mat)
+            torch.cuda.empty_cache()
 
-            # ### Publish the bounding box image ###
-            # np_im = results.render()
-            # image_message = mybridge.cv2_to_imgmsg(np_im[0], encoding="passthrough")
-            # pub_yolo_boundingbox_video.publish(image_message)
+
+            # dict_loss_values = agent.update(minibatch, act, train=True)
+            n_iteration += 1
+
+            # # Log the loss values
+            # dict_sum_loss['sum_loss_attack'] = dict_sum_loss['sum_loss_attack'] + dict_loss_values['loss_attack'] 
+            # dict_sum_loss['sum_error_confidence'] = dict_sum_loss['sum_error_confidence'] + dict_loss_values['error_obj_confidence'] 
+            
+
+            # dict_sum_loss['n_count'] = dict_sum_loss['n_count'] + 1 
+
+            if n_iteration % N_LOG_INTERVAL==0:
+                #print(os.getcwd())
+                agent.save_the_model(777)
+
+            #     WRITER.add_scalar('imageattack_loss', dict_sum_loss['sum_loss_attack']/dict_sum_loss['n_count'], n_iteration)
+            #     WRITER.add_scalar('error_obj_confidence', dict_sum_loss['sum_error_confidence']/dict_sum_loss['n_count'], n_iteration)
+            #     dict_sum_loss = {'sum_loss_attack':0, 'sum_error_confidence':0, 'sum_l2_loss':0, 'n_count':0}
+            #     agent.save_the_model(777)
+
+            
+
+
 
         rate.sleep()
+
+        #break

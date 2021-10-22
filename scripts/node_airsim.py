@@ -58,7 +58,7 @@ def fnc_callback4(msg):
     TRACKING_ON_CMD_RECEIVED = msg
 
 ENVIRONMENT_CMD_RECEIVED = None
-def fnc_callback5(msg):
+def fnc_callback7(msg):
     global ENVIRONMENT_CMD_RECEIVED
     ENVIRONMENT_CMD_RECEIVED = msg
 
@@ -81,7 +81,7 @@ def run_airsim_node():
     sub_bool_cmd_taking_off = rospy.Subscriber('/key_teleop/taking_off_bool', Bool, fnc_callback2)
     sub_bool_cmd_landing = rospy.Subscriber('/key_teleop/landing_bool', Bool, fnc_callback3)
     sub_bool_cmd_tracking_on = rospy.Subscriber('/key_teleop/tracking_control_bool', Bool, fnc_callback4)
-    sub_int_cmd_highlvl_environment = rospy.Subscriber('/key_teleop/highlvl_environment_command', Int32, fnc_callback5)
+    sub_highlvl_environment_command = rospy.Subscriber('/key_teleop/highlvl_environment_command', Int32, fnc_callback7)   # subscriber init.
 
     
 
@@ -138,9 +138,10 @@ def run_airsim_node():
             response = responses[0]
             img1d = np.fromstring(response.image_data_uint8, dtype=np.uint8) # get numpy array
             img_rgb = img1d.reshape(response.height, response.width, 3) # reshape array to 3 channel image array H X W X 3
-            img_ros = mybridge.cv2_to_imgmsg(img_rgb)  
+            img_ros = mybridge.cv2_to_imgmsg(img_rgb)
             # Publish the topics
             pub_camera_frame.publish(img_ros)
+            
         except:
             COUNT_ERROR += 1
             print('The image was not retrieved!', COUNT_ERROR)

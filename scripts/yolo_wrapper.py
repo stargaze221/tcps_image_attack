@@ -34,7 +34,6 @@ class YoloWrapper:
             if len(detection)>0:
                 for box in detection:
                     box = box.cpu().numpy()
-                    #print('detection', box)
                     xyxy = box[:4].astype(int)
                     class_int =  int(box[-1])
                     plot_one_box(xyxy, cv2_images_uint8, color=self.color[class_int%10], label=self.model.names[class_int])
@@ -52,7 +51,7 @@ if __name__ == "__main__":
     yolo_model = YoloWrapper('yolov5m.pt')
 
     ### Load the single image ###
-    data = np.asarray(Image.open('sample.png').convert('RGB'))
+    data = np.asarray(Image.open('image_sample.png').convert('RGB'))
     x_image = torch.FloatTensor(data).to(DEVICE).permute(2, 0, 1).unsqueeze(0)/255
     print('x_image', x_image.size(), 'min:', x_image.min(), 'max:', x_image.max())
 
@@ -60,6 +59,6 @@ if __name__ == "__main__":
     pred = yolo_model.get_predictions(x_image)
 
     ### Use the model to draw prediction ### 
-    cv2_images = yolo_model.draw_image_w_predictions(x_image)
+    cv2_images, np_pred = yolo_model.draw_image_w_predictions(x_image, True)
 
     
