@@ -4,7 +4,7 @@ import rospy
 
 from std_msgs.msg import Float32MultiArray        # See https://gist.github.com/jarvisschultz/7a886ed2714fac9f5226
 from geometry_msgs.msg import Vector3
-
+from setting_params import FREQ_LOW_LEVEL
 
 ### ROS Subscriber Callback ###
 STATE_ARRAY_RECEIVED = None
@@ -27,7 +27,7 @@ if __name__=='__main__':
     rospy.init_node('controller_node')
 
     # subscriber init.
-    sub  = rospy.Subscriber('/airsim_node/state_values', Float32MultiArray, fnc_callback)
+    sub  = rospy.Subscriber('/airsim_node/state_obs_values', Float32MultiArray, fnc_callback)
     sub1 = rospy.Subscriber('/yolo_node/yolo_predictions', Float32MultiArray, fnc_callback1)
 
 
@@ -37,8 +37,8 @@ if __name__=='__main__':
     pub_tgt_box = rospy.Publisher('/controller_node/tgt_box_rcvd', Vector3, queue_size=1)
     pub_vel_cmd = rospy.Publisher('/controller_node/vel_cmd', Vector3, queue_size=1)
 
-    # Running rate at 10 Hz
-    rate=rospy.Rate(10)
+    # Running rate
+    rate=rospy.Rate(FREQ_LOW_LEVEL)
 
     vel_est    = Vector3()
     body_angle = Vector3()
@@ -100,7 +100,7 @@ if __name__=='__main__':
                     # size [10, 100]   target 30
                     CTR_X_POS = 2.4
                     CTR_Y_POS = 3.1
-                    AREA_TGT = 16
+                    AREA_TGT = 20
 
                     if len(tgt_boxes) > 0:
                         # Take the most believable bounding box if there are multiple of them.
@@ -125,7 +125,6 @@ if __name__=='__main__':
                         vel_cmd_tracking.x = 0
                         vel_cmd_tracking.y = 0
                         vel_cmd_tracking.z = 0
-
 
             else:
                 vel_cmd_tracking.x = 0

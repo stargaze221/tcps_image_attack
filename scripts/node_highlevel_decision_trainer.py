@@ -7,7 +7,7 @@ from std_msgs.msg import MultiArrayDimension      # See http://docs.ros.org/api/
 from sensor_msgs.msg import Image
 import numpy as np
 import torch
-import cv2
+from cv_bridge import CvBridge
 
 
 from setting_params import N_ACT_DIM, N_STATE_DIM, DEVICE, SETTING, FREQ_HIGH_LEVEL
@@ -20,26 +20,10 @@ def fnc_img_callback(msg):
     global IMAGE_RECEIVED
     IMAGE_RECEIVED = msg
 
-STATE_OBS_RECEIVED = None
+TRANSITION_EST_RECEIVED = None
 def fnc_img_callback1(msg):
-    global STATE_OBS_RECEIVED
-    STATE_OBS_RECEIVED = msg
-
-
-def reward1(np_state_obs_received):
-    body_angle = np_state_obs_received[0]
-    linear_velocity = np_state_obs_received[1]
-    position = np_state_obs_received[2]
-    dist2tgt_speed_accel = np_state_obs_received[3]
-
-    '''
-    linear_velocity[0]  +: backward (moving away from the target)   -: forward (getting close to the target)
-    linear_velocity[1]  +: moving to left                           -: move to right
-    linear_velocity[2]  +: downward vertically                      -: upward
-    ''' 
-    reward = linear_velocity[0]  
-
-    return reward
+    global TRANSITION_EST_RECEIVED
+    TRANSITION_EST_RECEIVED = msg
 
 
 
@@ -48,32 +32,23 @@ if __name__ == '__main__':
     Input: image frame
     Outputs: previous state, action, reward, state_estimate
     '''
-    rospy.init_node('high_level_decision_maker')
+    rospy.init_node('high_level_decision_trainer')
     sub_image = rospy.Subscriber('/airsim_node/camera_frame', Image, fnc_img_callback)
     sub_state_observation = rospy.Subscriber('/airsim_node/state_obs_values', Float32MultiArray, fnc_img_callback1)
 
-    pub_transition = rospy.Publisher('/decision_maker_node/state_est_transition', Float32MultiArray, queue_size=1) # prev_state_est, action, reward, next_state_est
     rate=rospy.Rate(FREQ_HIGH_LEVEL)
+ 
 
-
-    # msg init. the msg is to send out numpy array.
-    msg_mat_transition = Float32MultiArray()
-    msg_mat_transition.layout.dim.append(MultiArrayDimension())
-    msg_mat_transition.layout.dim.append(MultiArrayDimension())
-    msg_mat_transition.layout.dim[0].label = "height"
-    msg_mat_transition.layout.dim[1].label = "width"
-    
-
-    state_estimator = DynamicAutoEncoderAgent(SETTING, train=False)
-    rl_agent = DDPGAgent(SETTING) #, train=False)
+    state_estimator = DynamicAutoEncoderAgent(SETTING, train=True)
+    rl_agent = DDPGAgent(SETTING)
 
 
     count = 0
-    pre_state_est = np.zeros(N_STATE_DIM)
-    prev_np_state_estimate = np.zeros(N_STATE_DIM)
-    prev_np_action = np.zeros(N_ACT_DIM)
+    
 
     while not rospy.is_shutdown():
+
+        '''
         count += 1
 
         # Load the saved Model every 10 iteration
@@ -85,17 +60,15 @@ if __name__ == '__main__':
                 print('An error in loading the saved model. Two possible reasons: 1. no saved model, 2. both of nodes simultaneously try to access the file together')
 
         if IMAGE_RECEIVED is not None and STATE_OBS_RECEIVED is not None:
+             
+            ### Update the state estimate ###
+            np_im = np.frombuffer(IMAGE_RECEIVED.data, dtype=np.uint8).reshape(IMAGE_RECEIVED.height, IMAGE_RECEIVED.width, -1)
+            np_im = np.array(np_im)
+            np_state_estimate = state_estimator.step(np_im, prev_np_action).squeeze()
 
-            with torch.no_grad(): 
-                ### Update the state estimate ###
-                np_im = np.frombuffer(IMAGE_RECEIVED.data, dtype=np.uint8).reshape(IMAGE_RECEIVED.height, IMAGE_RECEIVED.width, -1)
-                np_im = np.array(np_im)
-                np_im = cv2.resize(np_im, SETTING['encoder_image_size'], interpolation = cv2.INTER_AREA)
-                np_state_estimate = state_estimator.step(np_im, prev_np_action).squeeze()
-
-                ### Get action first ###
-                prev_torch_state_estimate = torch.FloatTensor(prev_np_state_estimate).to(DEVICE)
-                action = rl_agent.get_exploration_action(prev_torch_state_estimate).squeeze()
+            ### Get action first ###
+            prev_torch_state_estimate = torch.FloatTensor(prev_np_state_estimate).to(DEVICE)
+            action = rl_agent.get_exploration_action(prev_torch_state_estimate).squeeze()
 
             ### Calculate the reward ###
             height = STATE_OBS_RECEIVED.layout.dim[0].size
@@ -130,6 +103,7 @@ if __name__ == '__main__':
             prev_np_action = action
 
             torch.cuda.empty_cache()
+        '''
             
         rate.sleep()
 

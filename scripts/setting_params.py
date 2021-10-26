@@ -5,6 +5,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 
 SETTING = {}
+SETTING.update({'yolov5_param_path':'yolov5s.pt'})
 SETTING.update({'env_name': 'env1'})
 SETTING.update({'name': 'NIPS_Env1_'+'Petros'})
 
@@ -17,14 +18,19 @@ SETTING.update({'LAMBDA_COORD':0.001, 'LAMBDA_NOOBJ':0.001, 'AdvGen_Wt':1.0})
 # Loss function parameters
 SETTING.update({'max_trajectory_buffer':30, 'max_transition_buffer':100*10})
 SETTING.update({'max_episodes':31, 'image_size':(448,448), 'action_dim':4, 'action_lim':1.0, 'state_dim':32})
+SETTING.update({'encoder_image_size':(224,224)})
 
 
 N_ACT_DIM = 4
 N_STATE_DIM = 32
 N_WINDOW = 16
-Width = 224
-Height = 224
+
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 N_MINIBATCH = 4
+
+FREQ_HIGH_LEVEL = 5
+FREQ_MID_LEVEL = 10
+FREQ_LOW_LEVEL = 20
+
 
 WRITER = SummaryWriter()

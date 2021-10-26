@@ -14,21 +14,19 @@ from sensor_msgs.msg import Image
 from memory import ImageBuffer, ImageTargetBuffer
 from model import ImageAttackNetwork
 
-from agent import ImageAttackTraniner
+from agents.image_attack_agent import ImageAttackTraniner
 
-from setting_params import WRITER
+from setting_params import WRITER, DEVICE, FREQ_HIGH_LEVEL
 
-DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-N_MEMORY_SIZE = 10000
-N_MINIBATCH = 4
+N_MEMORY_SIZE = 1000
+N_MINIBATCH = 3
 
 IMAGE_TGT_MEMORY = ImageTargetBuffer(N_MEMORY_SIZE)
 IMAGEATTACKNN = ImageAttackNetwork(h=448, w=448, action_dim=4).to(DEVICE)
 
-FREQ_NODE = 5
+FREQ_NODE = FREQ_HIGH_LEVEL
 N_LOG_INTERVAL = 5
-
 
 ### ROS Subscriber Callback ###
 IMAGE_RECEIVED = None
@@ -37,32 +35,23 @@ def fnc_img_callback(msg):
     IMAGE_RECEIVED = msg
 
 if __name__=='__main__':
-
     rospy.init_node('image_attack_train_node')   # rosnode node initialization
+    print('Image_attack_train_node is initialized at', os.getcwd())
+
     sub_image = rospy.Subscriber('/airsim_node/camera_frame', Image, fnc_img_callback)   # subscriber init.
     rate=rospy.Rate(FREQ_NODE)   # Running rate at 20 Hz
     agent = ImageAttackTraniner()
 
-
     n_iteration = 0
-
-    
-
     ##############################
     ### Instructions in a loop ###
     ##############################
     while not rospy.is_shutdown():
 
-        #print('while not rospy.is_shutdown', os.getcwd())
-        #scount += 1
-
         if IMAGE_RECEIVED is not None:
             # Add data into memory
             np_im = np.frombuffer(IMAGE_RECEIVED.data, dtype=np.uint8).reshape(IMAGE_RECEIVED.height, IMAGE_RECEIVED.width, -1)
             act = np.array([-0.5, -0.5, -0.5, -0.5])  # or np.random.rand(4)
-
-            #act = np.random.rand(4)
-            
             IMAGE_TGT_MEMORY.add(np_im, act)
 
             # Sample data from the memory
@@ -73,11 +62,10 @@ if __name__=='__main__':
             ## CAL THE LOSS FUNCTION & A STEP OF GRAD DESCENT ##
             ####################################################
             agent.update(minibatch_img, minibatch_act)
-
             torch.cuda.empty_cache()
 
 
-            # dict_loss_values = agent.update(minibatch, act, train=True)
+            
             n_iteration += 1
 
             # # Log the loss values

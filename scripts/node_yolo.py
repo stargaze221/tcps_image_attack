@@ -3,23 +3,21 @@ import rospy
 import torch
 import numpy as np
 import PIL
+import os
 
 from sensor_msgs.msg import Image
-
 from std_msgs.msg import Float32, Bool
 from std_msgs.msg import Float32MultiArray        # See https://gist.github.com/jarvisschultz/7a886ed2714fac9f5226
 from std_msgs.msg import MultiArrayDimension      # See http://docs.ros.org/api/std_msgs/html/msg/MultiArrayLayout.html
 from cv_bridge import CvBridge
 
 from yolo_wrapper import YoloWrapper
+from setting_params import SETTING, FREQ_MID_LEVEL
 
-import os
-
-print(os.getcwd())
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-YOLO_MODEL = YoloWrapper('yolov5m.pt')
+YOLO_MODEL = YoloWrapper(SETTING['yolov5_param_path'])
 YOLO_MODEL.model.eval()
-FREQ_NODE = 20
+FREQ_NODE = FREQ_MID_LEVEL
 
 ### ROS Subscriber Callback ###
 IMAGE_RECEIVED = None
@@ -41,6 +39,8 @@ def fnc_callback6(msg):
 if __name__=='__main__':
 
     rospy.init_node('perception_node')   # rosnode node initialization
+    print("Perception_node is initialized at", os.getcwd())
+
     sub_image = rospy.Subscriber('/airsim_node/camera_frame', Image, fnc_img_callback)   # subscriber init.
     sub_bool_image_attack = rospy.Subscriber('/key_teleop/image_attack_bool', Bool, fnc_callback5)
     sub_attacked_image = rospy.Subscriber('/attack_generator_node/attacked_image', Image, fnc_callback6)   # subscriber init.
@@ -65,16 +65,15 @@ if __name__=='__main__':
     while not rospy.is_shutdown():
 
         if IMAGE_RECEIVED is not None:
-
             if ATTACKED_IMAGE is not None and IMAGE_ATTACK_ON_CMD_RECEIVED is not None and IMAGE_ATTACK_ON_CMD_RECEIVED.data:
                 np_im = np.frombuffer(ATTACKED_IMAGE.data, dtype=np.uint8).reshape(ATTACKED_IMAGE.height, ATTACKED_IMAGE.width, -1)
-
             else:
                 np_im = np.frombuffer(IMAGE_RECEIVED.data, dtype=np.uint8).reshape(IMAGE_RECEIVED.height, IMAGE_RECEIVED.width, -1)
 
             np_im = np.array(np_im)
-            x_image = torch.FloatTensor(np_im).to(DEVICE).permute(2, 0, 1).unsqueeze(0)/255
-            cv2_images_uint8, prediction_np = YOLO_MODEL.draw_image_w_predictions(x_image)
+            with torch.no_grad():
+                x_image = torch.FloatTensor(np_im).to(DEVICE).permute(2, 0, 1).unsqueeze(0)/255
+                cv2_images_uint8, prediction_np = YOLO_MODEL.draw_image_w_predictions(x_image.detach())
             
             ### Publish the prediction results in results.xyxy[0]) ###
             #                   x1           y1           x2           y2   confidence        class

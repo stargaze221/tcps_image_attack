@@ -65,8 +65,9 @@ class SimpleKeyTeleop():
         ord('d'):         ( 0,  0,  0,  0,  0, +1,  0),  # -yaw
         ord('e'):         ( 0,  0,  0,  1,  0,  0,  0),  # toggle take-off / landing
         ord('c'):         ( 0,  0,  0,  2,  0,  0,  0),  # toggle tracking control on / off
-        ord('k'):         ( 0,  0,  0,  3,  0,  0,  0),   # toggle image attack on / off
-        ord('r'):         ( 0,  0,  0,  0,  1,  0,  0)   # reset environment
+        ord('k'):         ( 0,  0,  0,  3,  0,  0,  0),  # toggle image attack on / off
+        ord('r'):         ( 0,  0,  0,  0,  1,  0,  0),  # reset environment
+        ord('t'):         ( 0,  0,  0,  4,  0,  0,  0)   # training mode on/off
     }
 
     def __init__(self, interface):
@@ -94,6 +95,8 @@ class SimpleKeyTeleop():
         self._landing_bool.data = False
         self._image_attack_bool = Bool()
         self._image_attack_bool.data=False
+        self._training_mode_bool = Bool()
+        self._training_mode_bool.data = False
 
         ### High level command ###
         self._environment_command = Int32()
@@ -103,6 +106,7 @@ class SimpleKeyTeleop():
         self._pub_taking_off_bool = rospy.Publisher('/key_teleop/taking_off_bool', Bool)
         self._pub_landing_bool = rospy.Publisher('/key_teleop/landing_bool', Bool)
         self._pub_image_attack_bool = rospy.Publisher('/key_teleop/image_attack_bool', Bool)
+        self._pub_training_mode_bool = rospy.Publisher('/key_teleop/training_mode_bool', Bool)
         self._pub_highlvl_environment_command_int = rospy.Publisher('/key_teleop/highlvl_environment_command', Int32)
     
 
@@ -151,6 +155,8 @@ class SimpleKeyTeleop():
             self._tracking_control_bool.data = not(self._tracking_control_bool.data)
         elif wx == 3:   # toggle image attack on / off
             self._image_attack_bool.data = not(self._image_attack_bool.data)
+        elif wx == 4:   # training mode on / off
+            self._training_mode_bool.data = not(self._training_mode_bool.data)
 
         ### High-level environment command ###
         self._environment_command.data = int(wy)
@@ -186,7 +192,8 @@ class SimpleKeyTeleop():
         self._interface.write_line(5, 'Use c to toggle tracking controller on/off: %s' %(self._tracking_control_bool.data))
         self._interface.write_line(6, 'Use e to toggle takeoff: %s and landing: %s' %(self._taking_off_bool, self._landing_bool.data))
         self._interface.write_line(7, 'Use k to toggle image attack: %s' %(self._image_attack_bool.data))
-        self._interface.write_line(8, 'Use o to close the window.')
+        self._interface.write_line(8, 'Use t to toggle training mode: %s' %(self._training_mode_bool.data))
+        self._interface.write_line(9, 'Use o to close the window.')
         self._interface.refresh()
 
         velcmd = self._get_velcmd(self._linear, self._angular)
@@ -196,6 +203,8 @@ class SimpleKeyTeleop():
         self._pub_taking_off_bool.publish(self._taking_off_bool)
         self._pub_landing_bool.publish(self._landing_bool)
         self._pub_image_attack_bool.publish(self._image_attack_bool)
+        self._pub_training_mode_bool.publish(self._training_mode_bool)
+
         self._pub_highlvl_environment_command_int.publish(self._environment_command)
 
 

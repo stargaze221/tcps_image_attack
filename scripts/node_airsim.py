@@ -26,7 +26,9 @@ client.confirmConnection()
 client.enableApiControl(True)
 client.takeoffAsync().join()
 
-FREQ_NODE = 20
+from setting_params import FREQ_LOW_LEVEL
+
+FREQ_NODE = FREQ_LOW_LEVEL
 filter_coeff = 0.1
 
 
@@ -57,6 +59,11 @@ def fnc_callback4(msg):
     global TRACKING_ON_CMD_RECEIVED
     TRACKING_ON_CMD_RECEIVED = msg
 
+TRAINING_ON_CMD_RECEIVED = None
+def fnc_callback5(msg):
+    global TRAINING_ON_CMD_RECEIVED
+    TRAINING_ON_CMD_RECEIVED = msg
+
 ENVIRONMENT_CMD_RECEIVED = None
 def fnc_callback7(msg):
     global ENVIRONMENT_CMD_RECEIVED
@@ -81,13 +88,14 @@ def run_airsim_node():
     sub_bool_cmd_taking_off = rospy.Subscriber('/key_teleop/taking_off_bool', Bool, fnc_callback2)
     sub_bool_cmd_landing = rospy.Subscriber('/key_teleop/landing_bool', Bool, fnc_callback3)
     sub_bool_cmd_tracking_on = rospy.Subscriber('/key_teleop/tracking_control_bool', Bool, fnc_callback4)
+    sub_bool_cmd_training_mode = rospy.Subscriber('/key_teleop/training_mode_bool', Bool, fnc_callback5)
     sub_highlvl_environment_command = rospy.Subscriber('/key_teleop/highlvl_environment_command', Int32, fnc_callback7)   # subscriber init.
 
     
 
     # publishers init.
     pub_camera_frame = rospy.Publisher('/airsim_node/camera_frame', Image, queue_size=1)
-    pub_state_values = rospy.Publisher('/airsim_node/state_values', Float32MultiArray, queue_size=1)
+    pub_state_obs_values = rospy.Publisher('/airsim_node/state_obs_values', Float32MultiArray, queue_size=1)
 
     # msg init. the msg is to send out state value array.
     msg_mat = Float32MultiArray()
@@ -115,14 +123,23 @@ def run_airsim_node():
         state = client.getMultirotorState()
         # s = pprint.pformat(state)
         # print("state: %s" % s)
-
+        
         state_orientation = state.kinematics_estimated.orientation
         body_angle = R.from_quat(state_orientation.to_numpy_array()).as_euler('zxy', degrees=False)
         body_yaw_angle = body_angle[0] - np.pi
 
         linear_velocity = state.kinematics_estimated.linear_velocity.to_numpy_array()
         position = state.kinematics_estimated.position.to_numpy_array()
-        np_state = np.stack([body_angle, linear_velocity, position])
+
+        target = client.simGetObjectPose("BP_Hatchback_2")
+        target_position = target.position.to_numpy_array()        
+        
+        distance_to_target = np.linalg.norm(target_position-position)
+        speed = np.linalg.norm(linear_velocity)
+        acceleration  = np.linalg.norm(state.kinematics_estimated.linear_acceleration.to_numpy_array())
+        dist2tgt_speed_accel = np.array([distance_to_target, speed, acceleration])
+
+        np_state = np.stack([body_angle, linear_velocity, position, dist2tgt_speed_accel])
 
         msg_mat.layout.dim[0].size = np_state.shape[0]
         msg_mat.layout.dim[1].size = np_state.shape[1]
@@ -130,7 +147,7 @@ def run_airsim_node():
         msg_mat.layout.dim[1].stride = np_state.shape[1]
         msg_mat.layout.data_offset = 0
         msg_mat.data = np_state.flatten().tolist()
-        pub_state_values.publish(msg_mat)
+        pub_state_obs_values.publish(msg_mat)
 
         # Get Camera Images
         try:                
@@ -174,6 +191,7 @@ def run_airsim_node():
         vy_body = float(np.sin(body_yaw_angle)*vx + np.cos(body_yaw_angle)*vy)
         client.moveByVelocityAsync(vx_body, vy_body, vz, 1/FREQ_NODE, airsim.DrivetrainType.MaxDegreeOfFreedom, airsim.YawMode(True, yaw_rate))
 
+
         # Send enviornment command to Airsim
         #if (KEY_CMD_RECEIVED is not None) and (KEY_CMD_RECEIVED.angular.x>0):
         if TAKING_OFF_CMD_RECEIVED is not None and TAKING_OFF_CMD_RECEIVED.data and not ON_FLIGHT:
@@ -196,14 +214,36 @@ def run_airsim_node():
             pose.position.z_val += np.random.uniform(-5, -2)    #random [-5, 2]#
             pose.position.y_val += np.random.uniform(-5.0, 5.0) #random [-2.5, 2.5]# 
 
-            client.simSetVehiclePose(pose, False)
-            
-            # tmp = client.simGetObjectPose("BP_Hatchback_2")
-            # print('tmp', tmp)
-            
+            client.simSetVehiclePose(pose, False)  
             client.confirmConnection()
             client.enableApiControl(True)
-            #client.takeoffAsync().join()
+
+        
+
+        elif TRAINING_ON_CMD_RECEIVED is not None and TRAINING_ON_CMD_RECEIVED.data:
+            if distance_to_target < 16 and speed < 0.1 and acceleration < 0.1:
+                print('Reached to the target and stopped! Success!')
+                client.reset()
+                pose = client.simGetVehiclePose("")
+                pose.position.z_val += np.random.uniform(-5, -2)    #random [-5, 2]#
+                pose.position.y_val += np.random.uniform(-5.0, 5.0) #random [-2.5, 2.5]# 
+
+                client.simSetVehiclePose(pose, False)  
+                client.confirmConnection()
+                client.enableApiControl(True)
+
+            elif distance_to_target > 40:
+                print('Target lost! Attacker Won!')
+                client.reset()
+                pose = client.simGetVehiclePose("")
+                pose.position.z_val += np.random.uniform(-5, -2)    #random [-5, 2]#
+                pose.position.y_val += np.random.uniform(-5.0, 5.0) #random [-2.5, 2.5]# 
+
+                client.simSetVehiclePose(pose, False)  
+                client.confirmConnection()
+                client.enableApiControl(True)
+
+            
 
         # Sleep for Set Rate
         rate.sleep()

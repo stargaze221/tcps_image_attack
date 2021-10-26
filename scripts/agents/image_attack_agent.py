@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-from model import ImageAttackNetwork
-
 import torch
 import numpy as np
 import torch.nn as nn
@@ -9,6 +7,8 @@ import os
 from util import get_target_index, make_grid
 from setting_params import DEVICE, SETTING
 from yolo_wrapper import YoloWrapper
+
+from nn_networks.imageattack_nn import ImageAttackNetwork
 
 GAMMA = 0.99
 TAU = 0.001
