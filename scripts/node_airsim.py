@@ -180,7 +180,7 @@ def run_airsim_node():
             cmd_vx += -CTL_CMD_RECEIVED.z
             cmd_vy += -CTL_CMD_RECEIVED.x
             cmd_vz += -CTL_CMD_RECEIVED.y
-            cmd_yaw += 0
+            cmd_yaw += -CTL_CMD_RECEIVED.y
 
         # First order filter for smoothing
         vx = (1-filter_coeff)*cmd_vx + filter_coeff*vx

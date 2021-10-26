@@ -9,7 +9,7 @@ SETTING.update({'yolov5_param_path':'yolov5s.pt'})
 SETTING.update({'env_name': 'env1'})
 SETTING.update({'name': 'NIPS_Env1_'+'Petros'})
 
-SETTING.update({'alpha': 0.01})
+SETTING.update({'alpha': 0.02})
 SETTING.update({'lr_img_gen':0.001, 'lr_img_discrim':0.0012, 'lr_sys_id':0.0032, 'lr_actor':0.0016, 'lr_critic':0.0064, 'betas':(0.5, 0.9)})
 SETTING.update({'n_batch_img':3, 'n_traj_img':1, 'n_batch_ddpg':8, 'n_window':30})
 

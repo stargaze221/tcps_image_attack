@@ -4,6 +4,7 @@
 import rospy
 from std_msgs.msg import Float32MultiArray        # See https://gist.github.com/jarvisschultz/7a886ed2714fac9f5226
 from std_msgs.msg import MultiArrayDimension      # See http://docs.ros.org/api/std_msgs/html/msg/MultiArrayLayout.html
+from geometry_msgs.msg import Twist
 from sensor_msgs.msg import Image
 import numpy as np
 import torch
@@ -53,6 +54,7 @@ if __name__ == '__main__':
     sub_state_observation = rospy.Subscriber('/airsim_node/state_obs_values', Float32MultiArray, fnc_img_callback1)
 
     pub_transition = rospy.Publisher('/decision_maker_node/state_est_transition', Float32MultiArray, queue_size=1) # prev_state_est, action, reward, next_state_est
+    pub_target = rospy.Publisher('/decision_maker_node/target', Twist, queue_size=1) # prev_state_est, action, reward, next_state_est
     rate=rospy.Rate(FREQ_HIGH_LEVEL)
 
 
@@ -72,6 +74,7 @@ if __name__ == '__main__':
     pre_state_est = np.zeros(N_STATE_DIM)
     prev_np_state_estimate = np.zeros(N_STATE_DIM)
     prev_np_action = np.zeros(N_ACT_DIM)
+    taget_msg = Twist()
 
     while not rospy.is_shutdown():
         count += 1
@@ -96,6 +99,17 @@ if __name__ == '__main__':
                 ### Get action first ###
                 prev_torch_state_estimate = torch.FloatTensor(prev_np_state_estimate).to(DEVICE)
                 action = rl_agent.get_exploration_action(prev_torch_state_estimate).squeeze()
+
+            taget_msg.linear.x = action[0]
+            taget_msg.linear.y = action[1]
+            taget_msg.linear.z = action[2]
+            taget_msg.angular.x = action[3]
+
+            pub_target.publish(taget_msg)
+
+            
+
+                
 
             ### Calculate the reward ###
             height = STATE_OBS_RECEIVED.layout.dim[0].size

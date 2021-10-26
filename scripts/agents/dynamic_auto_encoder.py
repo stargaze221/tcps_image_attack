@@ -45,6 +45,10 @@ class DynamicAutoEncoderAgent:
 
     def predict_batch_images(self, stream_arr, state_est_arr, tgt_arr):
 
+        print('stream_arr', stream_arr.shape)
+        print('state_est_arr', state_est_arr.shape)
+        print('tgt_arr', tgt_arr.shape)
+
         n_window, n_width, n_height, n_channel = stream_arr.shape
         n_window, n_state = state_est_arr.shape
         n_window, n_tgt = tgt_arr.shape
@@ -106,6 +110,10 @@ class DynamicAutoEncoderAgent:
         The system is learned from N_BATCH trajectories sampled from TRAJ_MEMORY and each of them are cropped with the same time WINDOW
         '''
         self.nn_model.train()
+
+        stream_arr = stream_arr.squeeze()
+        state_est_arr = state_est_arr.squeeze()
+        tgt_arr = tgt_arr.squeeze()
 
         ### Predict One Step Future ###        
         pred_image_stream = self.predict_batch_images(stream_arr, state_est_arr, tgt_arr)

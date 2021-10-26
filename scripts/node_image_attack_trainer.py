@@ -8,6 +8,8 @@ import os
 from std_msgs.msg import Float32
 from std_msgs.msg import Float32MultiArray        # See https://gist.github.com/jarvisschultz/7a886ed2714fac9f5226
 from std_msgs.msg import MultiArrayDimension      # See http://docs.ros.org/api/std_msgs/html/msg/MultiArrayLayout.html
+from geometry_msgs.msg import Twist
+
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
 
@@ -34,11 +36,18 @@ def fnc_img_callback(msg):
     global IMAGE_RECEIVED
     IMAGE_RECEIVED = msg
 
+TARGET_RECEIVED = None
+def fnc_target_callback(msg):
+    global TARGET_RECEIVED
+    TARGET_RECEIVED = msg
+
 if __name__=='__main__':
     rospy.init_node('image_attack_train_node')   # rosnode node initialization
     print('Image_attack_train_node is initialized at', os.getcwd())
 
     sub_image = rospy.Subscriber('/airsim_node/camera_frame', Image, fnc_img_callback)   # subscriber init.
+    sub_target = rospy.Subscriber('/decision_maker_node/target', Twist, fnc_target_callback)
+
     rate=rospy.Rate(FREQ_NODE)   # Running rate at 20 Hz
     agent = ImageAttackTraniner()
 
@@ -48,10 +57,11 @@ if __name__=='__main__':
     ##############################
     while not rospy.is_shutdown():
 
-        if IMAGE_RECEIVED is not None:
+        if IMAGE_RECEIVED is not None and TARGET_RECEIVED is not None:
             # Add data into memory
             np_im = np.frombuffer(IMAGE_RECEIVED.data, dtype=np.uint8).reshape(IMAGE_RECEIVED.height, IMAGE_RECEIVED.width, -1)
-            act = np.array([-0.5, -0.5, -0.5, -0.5])  # or np.random.rand(4)
+            act = np.array([TARGET_RECEIVED.linear.x, TARGET_RECEIVED.linear.y, TARGET_RECEIVED.linear.z, TARGET_RECEIVED.angular.x])
+            #act = np.array([-0.5, -0.5, -0.5, -0.5])  # or np.random.rand(4)
             IMAGE_TGT_MEMORY.add(np_im, act)
 
             # Sample data from the memory

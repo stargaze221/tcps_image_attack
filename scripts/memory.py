@@ -3,6 +3,8 @@
 from collections import deque
 import random
 import numpy as np
+import itertools
+
 
 
 class ImageTargetBuffer:
@@ -95,26 +97,22 @@ class TransitionBuffer:
         a_arr = np.float32([arr[1] for arr in batch])
         r_arr = np.float32([arr[2] for arr in batch])
         s1_arr = np.float32([arr[3] for arr in batch])
-        attack_loss_arr = np.float32([arr[4] for arr in batch])
-        attack_lever_arr = np.float32([arr[5] for arr in batch])
 
-        return s_arr, a_arr, r_arr, s1_arr, attack_loss_arr, attack_lever_arr
+        return s_arr, a_arr, r_arr, s1_arr
 
     def len(self):
         return self.len
 
-    def add(self, s, a, r, s1, attack_loss, attack_lever):
+    def add(self, s, a, r, s1):
         """
         adds a particular transaction in the memory buffer
         :param s: current state
         :param a: action taken
         :param r: reward received
         :param s1: next state
-        :param attack_loss: attack loss for bandit
-        :param attack_lever: attack lever for bandit
         :return:
         """
-        transition = (s, a, r, s1, attack_loss, attack_lever)
+        transition = (s, a, r, s1)
         self.len += 1
         if self.len > self.maxSize:
             self.len = self.maxSize
