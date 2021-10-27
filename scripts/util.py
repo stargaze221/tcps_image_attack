@@ -339,7 +339,7 @@ I decided not to use OU process. Now, the code below generates i.i.d. Gaussian.
 
 class OrnsteinUhlenbeckActionNoise:
 
-    def __init__(self, action_dim, mu = 0, theta = 0, sigma = 0.2):   #theta = 0.15, sigma = 0.2
+    def __init__(self, action_dim, mu = 0, theta = 0.15, sigma = 0.2):   #theta = 0.15, sigma = 0.2
         self.action_dim = action_dim
         self.mu = mu
         self.theta = theta
@@ -350,12 +350,12 @@ class OrnsteinUhlenbeckActionNoise:
         self.X = np.ones(self.action_dim) * self.mu
 
     def sample(self):
-        '''
+        
         dx = self.theta * (self.mu - self.X)
         dx = dx + self.sigma * np.random.randn(len(self.X))
         self.X = self.X + dx
-        '''
-        return self.sigma * np.random.randn(len(self.X)) #self.X
+
+        return self.X
 
 
 # use this to plot Ornstein Uhlenbeck random motion
