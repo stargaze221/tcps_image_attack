@@ -45,10 +45,6 @@ class DynamicAutoEncoderAgent:
 
     def predict_batch_images(self, stream_arr, state_est_arr, tgt_arr):
 
-        print('stream_arr', stream_arr.shape)
-        print('state_est_arr', state_est_arr.shape)
-        print('tgt_arr', tgt_arr.shape)
-
         n_window, n_width, n_height, n_channel = stream_arr.shape
         n_window, n_state = state_est_arr.shape
         n_window, n_tgt = tgt_arr.shape
@@ -143,15 +139,15 @@ class DynamicAutoEncoderAgent:
         return loss_val
 
 
-    def save_the_model(self, epoch):
+    def save_the_model(self):
         if not os.path.exists('save/'+self.env_name+'/save/dynautoenc/'):
             os.makedirs('save/'+self.env_name+'/save/dynautoenc/')
-        f_name = self.name + '_dynautoenc_network_param_' +  str(epoch) + '_model.pth'
+        f_name = self.name + '_dynautoenc_network_param_' + '_model.pth'
         torch.save(self.nn_model.state_dict(), 'save/'+self.env_name+'/save/dynautoenc/'+f_name)
-        print('DynamicAutoEncoderAgent Model Saved')
+        #print('DynamicAutoEncoderAgent Model Saved')
 
-    def load_the_model(self, epoch, name):
-        f_name = self.name + '_dynautoenc_network_param_' +  str(epoch) + '_model.pth'
+    def load_the_model(self):
+        f_name = self.name + '_dynautoenc_network_param_' +  '_model.pth'
         self.nn_model.load_state_dict(torch.load('save/'+self.env_name+'/save/dynautoenc/'+f_name))
-        print('DynamicAutoEncoderAgent Model Loaded')
+        #print('DynamicAutoEncoderAgent Model Loaded')
 
