@@ -37,15 +37,21 @@ if __name__ == '__main__':
     rate=rospy.Rate(FREQ_MID_LEVEL)
     count = 0
 
+
+    error_count = 0
+
     while not rospy.is_shutdown():
         count += 1
         # Load the saved Model every 10 iteration
-        if count%10 == 0:
+        if count%FREQ_MID_LEVEL == 0:
             try:
-                print(os.getcwd())
-                agent.load_the_model(777)
+                #print(os.getcwd())
+                agent.load_the_model()
+                error_count = 0
             except:
-                print('An error in loading the saved model. Two possible reasons: 1. no saved model, 2. both of nodes simultaneously try to access the file together')
+                error_count +=1
+                if error_count > 10:
+                    print('In image_attack_node, model loading failed more than 10 times!')
 
         # Image generation
         if IMAGE_RECEIVED is not None and TARGET_RECEIVED is not None:
