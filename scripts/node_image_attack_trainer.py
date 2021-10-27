@@ -18,7 +18,7 @@ from model import ImageAttackNetwork
 
 from agents.image_attack_agent import ImageAttackTraniner
 
-from setting_params import WRITER, DEVICE, FREQ_HIGH_LEVEL
+from setting_params import DEVICE, FREQ_HIGH_LEVEL
 
 
 N_MEMORY_SIZE = 1000
@@ -48,10 +48,21 @@ if __name__=='__main__':
     sub_image = rospy.Subscriber('/airsim_node/camera_frame', Image, fnc_img_callback)   # subscriber init.
     sub_target = rospy.Subscriber('/decision_maker_node/target', Twist, fnc_target_callback)
 
+    pub_loss_monitor = rospy.Publisher('/image_attack_train_node/loss_monitor', Float32MultiArray, queue_size=1)   # publisher1 initialization.
+
     rate=rospy.Rate(FREQ_NODE)   # Running rate at 20 Hz
     agent = ImageAttackTraniner()
 
     n_iteration = 0
+
+    # msg init. the msg is to send out numpy array.
+    msg_mat = Float32MultiArray()
+    msg_mat.layout.dim.append(MultiArrayDimension())
+    msg_mat.layout.dim.append(MultiArrayDimension())
+    msg_mat.layout.dim[0].label = "height"
+    msg_mat.layout.dim[1].label = "width"
+
+
     ##############################
     ### Instructions in a loop ###
     ##############################
@@ -71,28 +82,29 @@ if __name__=='__main__':
             ####################################################
             ## CAL THE LOSS FUNCTION & A STEP OF GRAD DESCENT ##
             ####################################################
-            agent.update(minibatch_img, minibatch_act)
+            loss_value = agent.update(minibatch_img, minibatch_act)
             torch.cuda.empty_cache()
 
+            loss_monitor_np = np.array([[loss_value]])
+
+            msg_mat.layout.dim[0].size = loss_monitor_np.shape[0]
+            msg_mat.layout.dim[1].size = loss_monitor_np.shape[1]
+            msg_mat.layout.dim[0].stride = loss_monitor_np.shape[0]*loss_monitor_np.shape[1]
+            msg_mat.layout.dim[1].stride = loss_monitor_np.shape[1]
+            msg_mat.layout.data_offset = 0
+            msg_mat.data = loss_monitor_np.flatten().tolist()
+            pub_loss_monitor.publish(msg_mat)
 
             
             n_iteration += 1
 
-            # # Log the loss values
-            # dict_sum_loss['sum_loss_attack'] = dict_sum_loss['sum_loss_attack'] + dict_loss_values['loss_attack'] 
-            # dict_sum_loss['sum_error_confidence'] = dict_sum_loss['sum_error_confidence'] + dict_loss_values['error_obj_confidence'] 
-            
-
-            # dict_sum_loss['n_count'] = dict_sum_loss['n_count'] + 1 
 
             if n_iteration % N_LOG_INTERVAL==0:
-                #print(os.getcwd())
-                agent.save_the_model(777)
+                try:
+                    agent.save_the_model()
+                except:
+                    print('In image_attack_train_node, model saving failed!')
 
-            #     WRITER.add_scalar('imageattack_loss', dict_sum_loss['sum_loss_attack']/dict_sum_loss['n_count'], n_iteration)
-            #     WRITER.add_scalar('error_obj_confidence', dict_sum_loss['sum_error_confidence']/dict_sum_loss['n_count'], n_iteration)
-            #     dict_sum_loss = {'sum_loss_attack':0, 'sum_error_confidence':0, 'sum_l2_loss':0, 'n_count':0}
-            #     agent.save_the_model(777)
 
             
 
