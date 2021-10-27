@@ -37,6 +37,8 @@ if __name__ == '__main__':
     sub_image = rospy.Subscriber('/airsim_node/camera_frame', Image, fnc_img_callback)
     sub_state_observation = rospy.Subscriber('/decision_maker_node/state_est_transition', Float32MultiArray, fnc_img_callback1)
 
+    pub_loss_monitor = rospy.Publisher('/decision_trainer_node/loss_monitor', Float32MultiArray, queue_size=1)   # publisher1 initialization.
+
     rate=rospy.Rate(FREQ_HIGH_LEVEL)
  
     state_estimator = DynamicAutoEncoderAgent(SETTING, train=True)
@@ -45,20 +47,22 @@ if __name__ == '__main__':
     single_trajectory_memory = SingleTrajectoryBuffer(1000)
     transition_memory = TransitionBuffer(1000)
 
-    count = 0
+    n_iteration = 0
+
+    # msg init. the msg is to send out numpy array.
+    msg_mat = Float32MultiArray()
+    msg_mat.layout.dim.append(MultiArrayDimension())
+    msg_mat.layout.dim.append(MultiArrayDimension())
+    msg_mat.layout.dim[0].label = "height"
+    msg_mat.layout.dim[1].label = "width"
+
+    N_LOG_INTERVAL = 10
     
 
     while not rospy.is_shutdown():
 
-        count += 1
-
-        # Load the saved Model every 10 iteration
-        if count%10 == 0:
-            try:
-                state_estimator.load_the_model(777, SETTING['name'])
-                rl_agent.load_the_model(777, SETTING['name'])
-            except:
-                print('An error in loading the saved model. Two possible reasons: 1. no saved model, 2. both of nodes simultaneously try to access the file together')
+        n_iteration += 1
+        
 
         if IMAGE_RECEIVED is not None and TRANSITION_EST_RECEIVED is not None:
 
@@ -74,21 +78,41 @@ if __name__ == '__main__':
             prev_np_state_estimate = np_transition[0]
             action = np_transition[1][:N_ACT_DIM]
             reward = np_transition[1][-1]
+            done = np_transition[1][-2]
             np_state_estimate = np_transition[2]
 
             single_trajectory_memory.add(np_im, action, prev_np_state_estimate)
-            transition_memory.add(prev_np_state_estimate, action, reward, np_state_estimate)
+            transition_memory.add(prev_np_state_estimate, action, reward, np_state_estimate, done)
 
             ### Update ###
-            if single_trajectory_memory.len > N_WINDOW:
+            if single_trajectory_memory.len > N_WINDOW and transition_memory.len > N_WINDOW:
+
                 batch_obs_img_stream, batch_tgt_stream, batch_state_est_stream = single_trajectory_memory.sample(N_WINDOW)
                 loss_sys_id = state_estimator.update(batch_obs_img_stream, batch_state_est_stream, batch_tgt_stream)
 
-            if transition_memory.len > N_WINDOW:
-                s_arr, a_arr, r_arr, s1_arr = transition_memory.sample(8)
-                loss_actor, loss_critic_= rl_agent.update(s_arr, a_arr, r_arr, s1_arr)
+                s_arr, a_arr, r_arr, s1_arr, done_arr = transition_memory.sample(8)
+                loss_actor, loss_critic = rl_agent.update(s_arr, a_arr, r_arr, s1_arr, done_arr)
+
+                loss_monitor_np = np.array([[loss_sys_id, loss_actor, loss_critic]])
+
+                msg_mat.layout.dim[0].size = loss_monitor_np.shape[0]
+                msg_mat.layout.dim[1].size = loss_monitor_np.shape[1]
+                msg_mat.layout.dim[0].stride = loss_monitor_np.shape[0]*loss_monitor_np.shape[1]
+                msg_mat.layout.dim[1].stride = loss_monitor_np.shape[1]
+                msg_mat.layout.data_offset = 0
+                msg_mat.data = loss_monitor_np.flatten().tolist()
+                pub_loss_monitor.publish(msg_mat)
 
             torch.cuda.empty_cache()
+
+        if n_iteration % N_LOG_INTERVAL==0:
+            try:
+                state_estimator.save_the_model()
+                rl_agent.save_the_model()
+            except:
+                print('in high_level_decision_trainer, model saving failed!')
+
+            
             
         rate.sleep()
 
