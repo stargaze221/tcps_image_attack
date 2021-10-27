@@ -13,4 +13,6 @@
     </node>
     <node pkg="tcps_image_attack" type="node_highlevel_decision_trainer.py" name="high_level_decision_trainer" output="screen">
     </node>
+    <node pkg="tcps_image_attack" type="key_teleop.py" name="key_teleop" output="screen"  launch-prefix="gnome-terminal --command">
+    </node>
 </launch>
