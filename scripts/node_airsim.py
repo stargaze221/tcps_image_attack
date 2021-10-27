@@ -10,28 +10,9 @@ from cv_bridge import CvBridge
 
 import airsim
 import numpy as np
-
-from scipy.spatial.transform import Rotation as R # Quater
-
-
-
-
+from scipy.spatial.transform import Rotation as R # Quaternion to Euler
 import pprint
-
-### Global Objects and Variables ###
-
-# connect to the AirSim simulator
-client = airsim.MultirotorClient()
-client.confirmConnection()
-client.enableApiControl(True)
-client.takeoffAsync().join()
-
-from setting_params import FREQ_LOW_LEVEL
-
-FREQ_NODE = FREQ_LOW_LEVEL
-filter_coeff = 0.1
-
-
+from setting_params import FREQ_LOW_LEVEL, filter_coeff
 
 ### ROS Subscriber Callback ###
 KEY_CMD_RECEIVED = None
@@ -76,22 +57,36 @@ def fnc_callback7(msg):
     ENVIRONMENT_CMD_RECEIVED = msg
 
 
+def reset(client):
+    print("=======================================")
+    client.reset()
+    pose = client.simGetVehiclePose("")
+    pose.position.z_val += np.random.uniform(-5, -2)    #random [-5, 2]#
+    pose.position.y_val += np.random.uniform(-5.0, 5.0) #random [-2.5, 2.5]# 
+    client.simSetVehiclePose(pose, False)  # Random initial position
+    client.confirmConnection()
+    client.enableApiControl(True)
+
 
 def run_airsim_node():
+    # connect to the AirSim simulator
+    client = airsim.MultirotorClient()
+    client.confirmConnection()
+    client.enableApiControl(True)
+    client.takeoffAsync().join()
 
-    ### Finite State ###
+    ### State Values ###
     ON_FLIGHT = False
-    ON_TRACKING = False
-    DONE = 0
-
     bool_reset_msg = Bool()
     bool_reset_msg.data = False
-
     done_val = 0
     collision_val = 0
-
-
     COUNT_ERROR = 0
+    vx = 0   # commands to AirSim
+    vy = 0   # commands to AirSim
+    vz = 0   # commands to AirSim
+    yaw_rate = 0  # commands to AirSim
+    DONE = False
 
     # rosnode node initialization
     rospy.init_node('airsim_node')
@@ -106,31 +101,22 @@ def run_airsim_node():
     sub_highlvl_environment_command = rospy.Subscriber('/key_teleop/highlvl_environment_command', Int32, fnc_callback7)   # subscriber init.
     sub_reset_ack = rospy.Subscriber('/decision_maker_node/reset_ack', Bool, fnc_callback6)
 
-    
-
     # publishers init.
     pub_camera_frame = rospy.Publisher('/airsim_node/camera_frame', Image, queue_size=1)
     pub_state_obs_values = rospy.Publisher('/airsim_node/state_obs_values', Float32MultiArray, queue_size=1)
     pub_env_reset = rospy.Publisher('/airsim_node/reset_bool', Bool, queue_size=1)
-
     # msg init. the msg is to send out state value array.
     msg_mat = Float32MultiArray()
     msg_mat.layout.dim.append(MultiArrayDimension())
     msg_mat.layout.dim.append(MultiArrayDimension())
     msg_mat.layout.dim[0].label = "height"
     msg_mat.layout.dim[1].label = "width"
-
-    # a bridge from cv2 image to ROS image
+    # a bridge from cv2 (np.uint8 image) image to ROS image
     mybridge = CvBridge()
-
     # Running rate
-    rate=rospy.Rate(FREQ_NODE)
+    rate=rospy.Rate(FREQ_LOW_LEVEL)
 
-    vx = 0
-    vy = 0
-    vz = 0
-    yaw_rate = 0
-
+    
     ##############################
     ### Instructions in a loop ###
     ##############################
@@ -140,56 +126,37 @@ def run_airsim_node():
         # s = pprint.pformat(state)
         # print("state: %s" % s)
         collision_state = client.simGetCollisionInfo()
-        
         state_orientation = state.kinematics_estimated.orientation
         body_angle = R.from_quat(state_orientation.to_numpy_array()).as_euler('zxy', degrees=False)
         body_yaw_angle = body_angle[0] - np.pi
-
         linear_velocity = state.kinematics_estimated.linear_velocity.to_numpy_array()
         position = state.kinematics_estimated.position.to_numpy_array()
-
         target = client.simGetObjectPose("BP_Hatchback_2")
         target_position = target.position.to_numpy_array()        
-        
         distance_to_target = np.linalg.norm(target_position-position)
         speed = np.linalg.norm(linear_velocity)
         acceleration  = np.linalg.norm(state.kinematics_estimated.linear_acceleration.to_numpy_array())
         dist2tgt_speed_accel = np.array([distance_to_target, speed, acceleration])
-
         ###################################################
         ### Check reset condition and reset environment ###
         ###################################################
-
-        def reset():
-            print("=======================================")
-            client.reset()
-            pose = client.simGetVehiclePose("")
-            pose.position.z_val += np.random.uniform(-5, -2)    #random [-5, 2]#
-            pose.position.y_val += np.random.uniform(-5.0, 5.0) #random [-2.5, 2.5]# 
-
-            client.simSetVehiclePose(pose, False)  
-            client.confirmConnection()
-            client.enableApiControl(True)
+        
 
         if distance_to_target < 16 and speed < 0.1 and acceleration < 0.1:
-            reset()
+            reset(client)
             print('Reached to the target and stopped! Success!')
             DONE_EVENT = 1
             COLLISION_EVENT =0
-            
-
         elif distance_to_target > 40:
-            reset()
+            reset(client)
             print('Target lost! Attacker Won!')
             DONE_EVENT = 1
             COLLISION_EVENT =0
-
         elif collision_state.has_collided:
-            reset()
+            reset(client)
             print('Collision!')
             DONE_EVENT = 1
-            COLLISION_EVENT =1
-            
+            COLLISION_EVENT =1   
         else:
             DONE_EVENT = 0
             COLLISION_EVENT =0
@@ -201,18 +168,17 @@ def run_airsim_node():
         if DONE_EVENT > 0.5: # at onset of done
             print('Done event!')
             if not(Ack): # Not Ack Yet!
-                DONE = True
+                DONE = True # Hold DONE value as True
                 done_val = 1
                 collision_val = COLLISION_EVENT
                 other_finite_state = np.array([done_val, collision_val, 0])
                 np_state_terminal = np.stack([body_angle, linear_velocity, position, dist2tgt_speed_accel, other_finite_state])
-
         else: # during other time or waiting
             if Ack:  # Ack!
                 DONE = False
                 done_val = 0
                 collision_val = 0
-        bool_reset_msg.data = DONE
+        bool_reset_msg.data = DONE 
         pub_env_reset.publish(bool_reset_msg)
 
         if DONE:
@@ -270,7 +236,7 @@ def run_airsim_node():
         yaw_rate = (1-filter_coeff)*cmd_yaw + filter_coeff*yaw_rate
         vx_body = float(np.cos(body_yaw_angle)*vx - np.sin(body_yaw_angle)*vy)
         vy_body = float(np.sin(body_yaw_angle)*vx + np.cos(body_yaw_angle)*vy)
-        client.moveByVelocityAsync(vx_body, vy_body, vz, 1/FREQ_NODE, airsim.DrivetrainType.MaxDegreeOfFreedom, airsim.YawMode(True, yaw_rate))
+        client.moveByVelocityAsync(vx_body, vy_body, vz, 1/FREQ_LOW_LEVEL, airsim.DrivetrainType.MaxDegreeOfFreedom, airsim.YawMode(True, yaw_rate))
 
 
         # Send enviornment command to Airsim
@@ -298,9 +264,6 @@ def run_airsim_node():
             client.simSetVehiclePose(pose, False)  
             client.confirmConnection()
             client.enableApiControl(True)
-
-
-            
 
         # Sleep for Set Rate
         rate.sleep()

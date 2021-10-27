@@ -25,25 +25,37 @@ def fnc_target_callback(msg):
 
 
 if __name__ == '__main__':
+
+    # rosnode node initialization
     rospy.init_node('image_attack_node')
     print('Image_attack_node is initialized at', os.getcwd())
-    
+
+    # subscriber init.
     sub_image = rospy.Subscriber('/airsim_node/camera_frame', Image, fnc_img_callback)
     sub_target = rospy.Subscriber('/decision_maker_node/target', Twist, fnc_target_callback)
-    pub_attacked_image = rospy.Publisher('/attack_generator_node/attacked_image', Image, queue_size=1)    
-    
-    agent = ImageAttacker()
-    mybridge = CvBridge()
+
+    # publishers init.
+    pub_attacked_image = rospy.Publisher('/attack_generator_node/attacked_image', Image, queue_size=1)
+
+    # Running rate
     rate=rospy.Rate(FREQ_MID_LEVEL)
-    count = 0
 
+    # Training agents init
+    agent = ImageAttacker()
 
+    # a bridge from cv2 image to ROS image
+    mybridge = CvBridge()
+    
     error_count = 0
+    n_iteration = 0
+    ##############################
+    ### Instructions in a loop ###
+    ##############################
 
     while not rospy.is_shutdown():
-        count += 1
+        n_iteration += 1
         # Load the saved Model every 10 iteration
-        if count%FREQ_MID_LEVEL == 0:
+        if n_iteration%FREQ_MID_LEVEL == 0:
             try:
                 #print(os.getcwd())
                 agent.load_the_model()

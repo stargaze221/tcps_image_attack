@@ -12,9 +12,8 @@ from std_msgs.msg import MultiArrayDimension      # See http://docs.ros.org/api/
 from cv_bridge import CvBridge
 
 from yolo_wrapper import YoloWrapper
-from setting_params import SETTING, FREQ_MID_LEVEL
+from setting_params import SETTING, FREQ_MID_LEVEL, DEVICE
 
-DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 YOLO_MODEL = YoloWrapper(SETTING['yolov5_param_path'])
 YOLO_MODEL.model.eval()
 FREQ_NODE = FREQ_MID_LEVEL
@@ -38,13 +37,16 @@ def fnc_callback6(msg):
 
 if __name__=='__main__':
 
+    # rosnode node initialization
     rospy.init_node('perception_node')   # rosnode node initialization
     print("Perception_node is initialized at", os.getcwd())
 
+    # subscriber init.
     sub_image = rospy.Subscriber('/airsim_node/camera_frame', Image, fnc_img_callback)   # subscriber init.
     sub_bool_image_attack = rospy.Subscriber('/key_teleop/image_attack_bool', Bool, fnc_callback5)
     sub_attacked_image = rospy.Subscriber('/attack_generator_node/attacked_image', Image, fnc_callback6)   # subscriber init.
 
+    # publishers init.
     pub_yolo_prediction = rospy.Publisher('/yolo_node/yolo_predictions', Float32MultiArray, queue_size=1)   # publisher1 initialization.
     pub_yolo_boundingbox_video = rospy.Publisher('/yolo_node/yolo_pred_frame', Image, queue_size=1)   # publisher2 initialization.
     rate=rospy.Rate(FREQ_NODE)   # Running rate at 20 Hz

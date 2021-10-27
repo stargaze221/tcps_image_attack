@@ -30,7 +30,6 @@ if __name__=='__main__':
     sub  = rospy.Subscriber('/airsim_node/state_obs_values', Float32MultiArray, fnc_callback)
     sub1 = rospy.Subscriber('/yolo_node/yolo_predictions', Float32MultiArray, fnc_callback1)
 
-
     # publishers init.
     pub_vel_est = rospy.Publisher('/controller_node/vel_est_rcvd', Vector3, queue_size=1)
     pub_body_angle = rospy.Publisher('/controller_node/body_angle_rcvd', Vector3, queue_size=1)
@@ -40,11 +39,11 @@ if __name__=='__main__':
     # Running rate
     rate=rospy.Rate(FREQ_LOW_LEVEL)
 
+    # msg init.
     vel_est    = Vector3()
     body_angle = Vector3()
     tgt_box    = Vector3()
     vel_cmd_tracking = Vector3()
-
 
     ##############################
     ### Instructions in a loop ###
@@ -55,7 +54,6 @@ if __name__=='__main__':
 
             height = STATE_ARRAY_RECEIVED.layout.dim[0].size
             width = STATE_ARRAY_RECEIVED.layout.dim[1].size
-
             np_state = np.array(STATE_ARRAY_RECEIVED.data).reshape((height, width))
 
             pitch, roll, yaw = (np_state[0][1], np_state[0][2], np_state[0][0])
@@ -131,7 +129,7 @@ if __name__=='__main__':
                 vel_cmd_tracking.z = 0
 
 
-        ### Publish Image and State ###
+        ### Publish ###
         pub_vel_est.publish(vel_est)
         pub_body_angle.publish(body_angle)
         pub_tgt_box.publish(tgt_box)
