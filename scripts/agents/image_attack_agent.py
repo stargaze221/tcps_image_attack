@@ -42,12 +42,13 @@ class ImageAttackTraniner:
         self.attack_network.train()
         self.optimizerG = torch.optim.Adam(self.attack_network.parameters(), setting_dict['lr_img_gen'], setting_dict['betas'])
         
-    def save_the_model(self, epoch):
+    def save_the_model(self):
         if not os.path.exists('save/'+self.env_name+'/save/attack_network/'):
             os.makedirs('save/'+self.env_name+'/save/attack_network/')
-        f_name = self.name + '_attack_network_param_' +  str(epoch) + '_model.pth'
+        f_name = self.name + '_attack_network_param_' +  '_model.pth'
+        #print('save/'+self.env_name+'/save/attack_network/'+f_name)
         torch.save(self.attack_network.state_dict(), 'save/'+self.env_name+'/save/attack_network/'+f_name)
-        print('ImageAttacker Model Saved')
+        #print('ImageAttacker Model Saved')
 
     def update(self, obs_arr, tgt_arr, train=True):
         self.yolo_model.model.eval()
@@ -64,10 +65,12 @@ class ImageAttackTraniner:
         loss.backward()
         self.optimizerG.step()
 
+        loss_value = loss.item()
+
         del loss, X, Y
         torch.cuda.empty_cache()        
 
-        return 0
+        return loss_value
 
     def make_attacked_images(self, X, Y):
         """
@@ -176,11 +179,12 @@ class ImageAttacker():
         self.alpha = setting_dict['alpha']
         self.attack_network.eval()
     
-    def load_the_model(self, epoch):
+    def load_the_model(self):
         #print(os.getcwd())
-        f_name = self.name + '_attack_network_param_' +  str(epoch) + '_model.pth'
+        f_name = self.name + '_attack_network_param_' + '_model.pth'
+        #print('save/'+self.env_name+'/save/attack_network/'+f_name)
         self.attack_network.load_state_dict(torch.load('save/'+self.env_name+'/save/attack_network/'+f_name))
-        print('ImageAttacker Model Loaded')
+        #print('ImageAttacker Model Loaded')
 
     def generate_attack(self, obs, tgt_box):
         self.attack_network.eval()
