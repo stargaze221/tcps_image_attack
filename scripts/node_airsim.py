@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
-
 import rospy
-
 from std_msgs.msg import Float32MultiArray        # See https://gist.github.com/jarvisschultz/7a886ed2714fac9f5226
 from std_msgs.msg import MultiArrayDimension      # See http://docs.ros.org/api/std_msgs/html/msg/MultiArrayLayout.html
 from std_msgs.msg import Bool, Int32
-
 from geometry_msgs.msg import Twist
 from geometry_msgs.msg import Vector3
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 
-from scipy.spatial.transform import Rotation as R
-
 import airsim
 import numpy as np
-import cv2
+
+from scipy.spatial.transform import Rotation as R # Quater
+
+
+
+
 import pprint
 
 ### Global Objects and Variables ###

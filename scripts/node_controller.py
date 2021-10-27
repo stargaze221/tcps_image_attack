@@ -66,6 +66,7 @@ if __name__=='__main__':
             body_angle.x, body_angle.y, body_angle.z = (pitch, roll, yaw)
 
             if PREDICTION_ARRAY_RECEIVED is not None:
+
                 height = PREDICTION_ARRAY_RECEIVED.layout.dim[0].size
                 width = PREDICTION_ARRAY_RECEIVED.layout.dim[1].size
                 np_prediction = np.array(PREDICTION_ARRAY_RECEIVED.data).reshape((height, width))
@@ -118,8 +119,6 @@ if __name__=='__main__':
                         vel_cmd_tracking.x = cmd_vx  # if target is at the right then generate positive cmd_vx
                         vel_cmd_tracking.y = cmd_vy  # if target is at the above then generate positive cmd_vy
                         vel_cmd_tracking.z = cmd_vz  # if target is small then generate positive cmd_vz
-
-                        #print('vel_cmd_tracking', vel_cmd_tracking)
 
                     else:
                         vel_cmd_tracking.x = 0
