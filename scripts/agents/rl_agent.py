@@ -63,7 +63,7 @@ class DDPGAgent:
         :return: sampled action (Numpy array)
         """
         action = self.target_actor.forward(state).detach()
-        action = (action + 1)/2
+        #action = (action + 1)/2
         return action.data.cpu().numpy()
 
     def get_exploration_action(self, state):
@@ -73,16 +73,17 @@ class DDPGAgent:
         :return: sampled action (Numpy array)
         """
         action = self.actor.forward(state).detach()
-        action = (action + 1)/2
+        #action = (action + 1)/2
         new_action = action.data.cpu().numpy() + (self.noise.sample() * self.action_lim)
         return new_action
 
-    def update(self, s1,a1,r1,s2):
+    def update(self, s1,a1,r1,s2,done):
 
         s1 = torch.from_numpy(s1).to(DEVICE).float()
         a1 = torch.from_numpy(a1).to(DEVICE).float()
         r1 = torch.from_numpy(r1).to(DEVICE).float()
         s2 = torch.from_numpy(s2).to(DEVICE).float()
+        done = torch.from_numpy(done).to(DEVICE).float()
 
         
         # ---------------------- optimize critic ----------------------
@@ -90,12 +91,12 @@ class DDPGAgent:
         a2 = self.target_actor.forward(s2).detach()
         next_val = torch.squeeze(self.target_critic.forward(s2, a2).detach())
         # y_exp = r + gamma*Q'( s2, pi'(s2))
-        y_expected = r1 + GAMMA*next_val
+        #y_expected = r1 + GAMMA*next_val
         #print('r1', r1.size())
         #print('next_val', next_val.size())
 
 
-        #y_expected = r1 + GAMMA*(next_val - done*next_val)  # y_expected = r1 + GAMMA*next_val
+        y_expected = r1 + GAMMA*(next_val - done*next_val)  # y_expected = r1 + GAMMA*next_val
         # y_pred = Q( s1, a1)
         y_predicted = torch.squeeze(self.critic.forward(s1, a1))
         #print('y_predicted', y_predicted.size())
@@ -121,18 +122,18 @@ class DDPGAgent:
         return loss_actor.item(), loss_critic.item()
         
 
-    def save_the_model(self, epoch):
+    def save_the_model(self):
         if not os.path.exists('save/'+self.env_name+'/save/ddpg/'):
             os.makedirs('save/'+self.env_name+'/save/ddpg/')
-        f_name = self.name + '_actor_network_param_' +  str(epoch) + '_model.pth'
+        f_name = self.name + '_actor_network_param_' + '_model.pth'
         torch.save(self.actor.state_dict(), 'save/'+self.env_name+'/save/ddpg/'+f_name)
-        f_name = self.name + '_critic_network_param_' +  str(epoch) + '_model.pth'
+        f_name = self.name + '_critic_network_param_' + '_model.pth'
         torch.save(self.critic.state_dict(), 'save/'+self.env_name+'/save/ddpg/'+f_name)
-        print('DDPGAgent Model Saved')
+        #print('DDPGAgent Model Saved')
 
-    def load_the_model(self, epoch, name):
-        f_name = name + '_actor_network_param_' +  str(epoch) + '_model.pth'
+    def load_the_model(self):
+        f_name = self.name + '_actor_network_param_'  + '_model.pth'
         self.actor.load_state_dict(torch.load('save/'+self.env_name+'/save/ddpg/'+f_name))
-        f_name = name + '_critic_network_param_' +  str(epoch) + '_model.pth'
+        f_name = self.name + '_critic_network_param_' + '_model.pth'
         self.critic.load_state_dict(torch.load('save/'+self.env_name+'/save/ddpg/'+f_name))
-        print('DDPGAgent Model Loaded')
+        #print('DDPGAgent Model Loaded')
