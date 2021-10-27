@@ -88,15 +88,15 @@ class SimpleKeyTeleop():
 
         ### Other commands ###
         self._tracking_control_bool = Bool()
-        self._tracking_control_bool.data=False
+        self._tracking_control_bool.data=True
         self._taking_off_bool = Bool()
         self._taking_off_bool.data = False
         self._landing_bool = Bool()
         self._landing_bool.data = False
         self._image_attack_bool = Bool()
-        self._image_attack_bool.data=False
+        self._image_attack_bool.data=True
         self._training_mode_bool = Bool()
-        self._training_mode_bool.data = False
+        self._training_mode_bool.data = True
 
         ### High level command ###
         self._environment_command = Int32()
