@@ -64,6 +64,12 @@ def fnc_callback5(msg):
     global TRAINING_ON_CMD_RECEIVED
     TRAINING_ON_CMD_RECEIVED = msg
 
+RESET_ACK_RECEIVED = Bool()
+RESET_ACK_RECEIVED.data = False
+def fnc_callback6(msg):
+    global RESET_ACK_RECEIVED
+    RESET_ACK_RECEIVED = msg
+
 ENVIRONMENT_CMD_RECEIVED = None
 def fnc_callback7(msg):
     global ENVIRONMENT_CMD_RECEIVED
@@ -76,6 +82,14 @@ def run_airsim_node():
     ### Finite State ###
     ON_FLIGHT = False
     ON_TRACKING = False
+    DONE = 0
+
+    bool_reset_msg = Bool()
+    bool_reset_msg.data = False
+
+    done_val = 0
+    collision_val = 0
+
 
     COUNT_ERROR = 0
 
@@ -90,12 +104,14 @@ def run_airsim_node():
     sub_bool_cmd_tracking_on = rospy.Subscriber('/key_teleop/tracking_control_bool', Bool, fnc_callback4)
     sub_bool_cmd_training_mode = rospy.Subscriber('/key_teleop/training_mode_bool', Bool, fnc_callback5)
     sub_highlvl_environment_command = rospy.Subscriber('/key_teleop/highlvl_environment_command', Int32, fnc_callback7)   # subscriber init.
+    sub_reset_ack = rospy.Subscriber('/decision_maker_node/reset_ack', Bool, fnc_callback6)
 
     
 
     # publishers init.
     pub_camera_frame = rospy.Publisher('/airsim_node/camera_frame', Image, queue_size=1)
     pub_state_obs_values = rospy.Publisher('/airsim_node/state_obs_values', Float32MultiArray, queue_size=1)
+    pub_env_reset = rospy.Publisher('/airsim_node/reset_bool', Bool, queue_size=1)
 
     # msg init. the msg is to send out state value array.
     msg_mat = Float32MultiArray()
@@ -123,6 +139,7 @@ def run_airsim_node():
         state = client.getMultirotorState()
         # s = pprint.pformat(state)
         # print("state: %s" % s)
+        collision_state = client.simGetCollisionInfo()
         
         state_orientation = state.kinematics_estimated.orientation
         body_angle = R.from_quat(state_orientation.to_numpy_array()).as_euler('zxy', degrees=False)
@@ -139,7 +156,70 @@ def run_airsim_node():
         acceleration  = np.linalg.norm(state.kinematics_estimated.linear_acceleration.to_numpy_array())
         dist2tgt_speed_accel = np.array([distance_to_target, speed, acceleration])
 
-        np_state = np.stack([body_angle, linear_velocity, position, dist2tgt_speed_accel])
+        ###################################################
+        ### Check reset condition and reset environment ###
+        ###################################################
+
+        def reset():
+            print("=======================================")
+            client.reset()
+            pose = client.simGetVehiclePose("")
+            pose.position.z_val += np.random.uniform(-5, -2)    #random [-5, 2]#
+            pose.position.y_val += np.random.uniform(-5.0, 5.0) #random [-2.5, 2.5]# 
+
+            client.simSetVehiclePose(pose, False)  
+            client.confirmConnection()
+            client.enableApiControl(True)
+
+        if distance_to_target < 16 and speed < 0.1 and acceleration < 0.1:
+            reset()
+            print('Reached to the target and stopped! Success!')
+            DONE_EVENT = 1
+            COLLISION_EVENT =0
+            
+
+        elif distance_to_target > 40:
+            reset()
+            print('Target lost! Attacker Won!')
+            DONE_EVENT = 1
+            COLLISION_EVENT =0
+
+        elif collision_state.has_collided:
+            reset()
+            print('Collision!')
+            DONE_EVENT = 1
+            COLLISION_EVENT =1
+            
+        else:
+            DONE_EVENT = 0
+            COLLISION_EVENT =0
+        
+        #########################
+        ### Reset Handshaking ###
+        #########################
+        Ack = RESET_ACK_RECEIVED.data
+        if DONE_EVENT > 0.5: # at onset of done
+            print('Done event!')
+            if not(Ack): # Not Ack Yet!
+                DONE = True
+                done_val = 1
+                collision_val = COLLISION_EVENT
+                other_finite_state = np.array([done_val, collision_val, 0])
+                np_state_terminal = np.stack([body_angle, linear_velocity, position, dist2tgt_speed_accel, other_finite_state])
+
+        else: # during other time or waiting
+            if Ack:  # Ack!
+                DONE = False
+                done_val = 0
+                collision_val = 0
+        bool_reset_msg.data = DONE
+        pub_env_reset.publish(bool_reset_msg)
+
+        if DONE:
+            np_state = np_state_terminal
+        else:
+            other_finite_state = np.array([done_val, collision_val, 0])
+            np_state = np.stack([body_angle, linear_velocity, position, dist2tgt_speed_accel, other_finite_state])
 
         msg_mat.layout.dim[0].size = np_state.shape[0]
         msg_mat.layout.dim[1].size = np_state.shape[1]
@@ -147,8 +227,9 @@ def run_airsim_node():
         msg_mat.layout.dim[1].stride = np_state.shape[1]
         msg_mat.layout.data_offset = 0
         msg_mat.data = np_state.flatten().tolist()
-        pub_state_obs_values.publish(msg_mat)
 
+        pub_state_obs_values.publish(msg_mat)
+        
         # Get Camera Images
         try:                
             responses = client.simGetImages([airsim.ImageRequest("0", airsim.ImageType.Scene, False, False)])
@@ -202,7 +283,7 @@ def run_airsim_node():
             ON_FLIGHT = True
            
         #elif (KEY_CMD_RECEIVED is not None) and (KEY_CMD_RECEIVED.angular.x<0):
-        elif TAKING_OFF_CMD_RECEIVED is not None and LANDING_OFF_CMD_RECEIVED.data and ON_FLIGHT:
+        elif LANDING_OFF_CMD_RECEIVED is not None and LANDING_OFF_CMD_RECEIVED.data and ON_FLIGHT:
             print('Emergency Landing!')
             client.landAsync().join()
             ON_FLIGHT = False
@@ -218,30 +299,6 @@ def run_airsim_node():
             client.confirmConnection()
             client.enableApiControl(True)
 
-        
-
-        elif TRAINING_ON_CMD_RECEIVED is not None and TRAINING_ON_CMD_RECEIVED.data:
-            if distance_to_target < 16 and speed < 0.1 and acceleration < 0.1:
-                print('Reached to the target and stopped! Success!')
-                client.reset()
-                pose = client.simGetVehiclePose("")
-                pose.position.z_val += np.random.uniform(-5, -2)    #random [-5, 2]#
-                pose.position.y_val += np.random.uniform(-5.0, 5.0) #random [-2.5, 2.5]# 
-
-                client.simSetVehiclePose(pose, False)  
-                client.confirmConnection()
-                client.enableApiControl(True)
-
-            elif distance_to_target > 40:
-                print('Target lost! Attacker Won!')
-                client.reset()
-                pose = client.simGetVehiclePose("")
-                pose.position.z_val += np.random.uniform(-5, -2)    #random [-5, 2]#
-                pose.position.y_val += np.random.uniform(-5.0, 5.0) #random [-2.5, 2.5]# 
-
-                client.simSetVehiclePose(pose, False)  
-                client.confirmConnection()
-                client.enableApiControl(True)
 
             
 
