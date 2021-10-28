@@ -49,8 +49,8 @@ if __name__ == '__main__':
     rl_agent = DDPGAgent(SETTING)
 
     # Memory init
-    single_trajectory_memory = SingleTrajectoryBuffer(1000)
-    transition_memory = TransitionBuffer(1000)
+    single_trajectory_memory = SingleTrajectoryBuffer(10000)
+    transition_memory = TransitionBuffer(10000)
 
     # msg init. the msg is to send out numpy array.
     msg_mat = Float32MultiArray()

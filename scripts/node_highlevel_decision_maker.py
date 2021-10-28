@@ -64,14 +64,29 @@ def reward1(np_state_obs_received):
     linear_velocity[1]  +: moving to left                           -: move to right
     linear_velocity[2]  +: downward vertically                      -: upward
     ''' 
-    if done > 0.5 and collision < 0.5:  # case 1: finised without collision
-        reward = dist2tgt
-        print('done and reward', reward)
-    elif done > 0.5 and collision > 0.5: # case 2: finisehd wiht collision
-        reward = dist2tgt
-        print('collision and reward', reward)
-    else:
-        reward = dist2tgt # when it is not terminal uses speed. 
+
+    if SETTING['reward_function'] == 'positive_distance':
+
+        if done > 0.5 and collision < 0.5:  # case 1: finised without collision
+            reward = dist2tgt
+            print('done and reward', reward)
+        elif done > 0.5 and collision > 0.5: # case 2: finisehd wiht collision
+            reward = dist2tgt
+            print('collision and reward', reward)
+        else:
+            reward = dist2tgt- speed  # when it is not terminal uses speed.   WO exp, it looks working. Maybe multiplication ???
+
+    elif SETTING['reward_function'] == 'negative_distance':
+
+        if done > 0.5 and collision < 0.5:  # case 1: finised without collision
+            reward = -dist2tgt
+            print('done and reward', reward)
+        elif done > 0.5 and collision > 0.5: # case 2: finisehd wiht collision
+            reward = -dist2tgt
+            print('collision and reward', reward)
+        else:
+            reward = -dist2tgt- speed  # when it is not terminal uses speed. 
+
     return reward
 
 

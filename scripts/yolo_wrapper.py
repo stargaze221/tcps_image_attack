@@ -43,6 +43,23 @@ class YoloWrapper:
                 cv2.waitKey(wait)
         return cv2_images_uint8, np.array(np_pred)
 
+    def draw_image_w_prediction_and_target(self, torch_image, action):
+        cv2_images_uint8, np_pred = self.draw_image_w_predictions(torch_image, show=False, wait=1000)
+        
+        ## Draw target box ###
+        tgt = np.array(action)
+        tgt = (-tgt + 1)/2  # [-1,1] -> [0,1] with some pertubation.
+        tgt = np.clip(tgt, 0, 1)
+        x_ctr = int(tgt[0]*448)
+        y_ctr = int(tgt[1]*448)
+        w = int(200*tgt[2] + 50)
+        h = int(200*tgt[3] + 50)
+        xyxy = np.array([x_ctr - w/2, y_ctr - h/2, x_ctr + w/2, y_ctr + h/2])
+        xyxy = np.clip(xyxy, 5, 448-5)
+        plot_one_box(xyxy, cv2_images_uint8, color=(150, 10, 10), label='target')
+
+        return cv2_images_uint8, np.array(np_pred)
+
 
 if __name__ == "__main__":
     from PIL import Image

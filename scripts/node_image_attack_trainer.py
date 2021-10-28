@@ -14,7 +14,7 @@ from agents.image_attack_agent import ImageAttackTraniner
 
 from setting_params import DEVICE, FREQ_HIGH_LEVEL
 
-N_MEMORY_SIZE = 1000
+N_MEMORY_SIZE = 10000
 N_MINIBATCH = 3
 IMAGE_TGT_MEMORY = ImageTargetBuffer(N_MEMORY_SIZE)
 

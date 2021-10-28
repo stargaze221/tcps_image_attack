@@ -63,7 +63,7 @@ class DDPGAgent:
         :return: sampled action (Numpy array)
         """
         action = self.target_actor.forward(state).detach()
-        #action = (action + 1)/2
+        
         return action.data.cpu().numpy()
 
     def get_exploration_action(self, state):
@@ -75,6 +75,9 @@ class DDPGAgent:
         action = self.actor.forward(state).detach()
         #action = (action + 1)/2
         new_action = action.data.cpu().numpy() + (self.noise.sample() * self.action_lim)
+
+        #self.noise.theta = self.noise.theta*0.99
+
         return new_action
 
     def update(self, s1,a1,r1,s2,done):

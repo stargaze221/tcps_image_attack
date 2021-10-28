@@ -142,14 +142,19 @@ def run_airsim_node():
         ###################################################
         
 
-        if distance_to_target < 16 and speed < 0.1 and acceleration < 0.1:
+        if distance_to_target < 16 and speed < 0.1:
             reset(client)
-            print('Reached to the target and stopped! Success!')
+            print('Reached to the target and stopped!')
+            DONE_EVENT = 1
+            COLLISION_EVENT =0
+        elif distance_to_target < 10:
+            reset(client)
+            print('Close to the target')
             DONE_EVENT = 1
             COLLISION_EVENT =0
         elif distance_to_target > 40:
             reset(client)
-            print('Target lost! Attacker Won!')
+            print('Target lost!')
             DONE_EVENT = 1
             COLLISION_EVENT =0
         elif collision_state.has_collided:
@@ -215,7 +220,7 @@ def run_airsim_node():
             cmd_vx = -KEY_CMD_RECEIVED.linear.x
             cmd_vy = -KEY_CMD_RECEIVED.linear.y
             cmd_vz = -KEY_CMD_RECEIVED.linear.z
-            cmd_yaw = KEY_CMD_RECEIVED.angular.z*5
+            cmd_yaw = -KEY_CMD_RECEIVED.angular.z*5
         else:
             cmd_vx = 0
             cmd_vy = 0

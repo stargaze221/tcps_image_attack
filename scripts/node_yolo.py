@@ -6,6 +6,7 @@ import PIL
 import os
 
 from sensor_msgs.msg import Image
+from geometry_msgs.msg import Twist
 from std_msgs.msg import Float32, Bool
 from std_msgs.msg import Float32MultiArray        # See https://gist.github.com/jarvisschultz/7a886ed2714fac9f5226
 from std_msgs.msg import MultiArrayDimension      # See http://docs.ros.org/api/std_msgs/html/msg/MultiArrayLayout.html
@@ -34,6 +35,12 @@ def fnc_callback6(msg):
     global ATTACKED_IMAGE
     ATTACKED_IMAGE = msg
 
+TARGET_RECEIVED = None
+def fnc_target_callback(msg):
+    global TARGET_RECEIVED
+    TARGET_RECEIVED = msg
+
+
 
 if __name__=='__main__':
 
@@ -45,6 +52,7 @@ if __name__=='__main__':
     sub_image = rospy.Subscriber('/airsim_node/camera_frame', Image, fnc_img_callback)   # subscriber init.
     sub_bool_image_attack = rospy.Subscriber('/key_teleop/image_attack_bool', Bool, fnc_callback5)
     sub_attacked_image = rospy.Subscriber('/attack_generator_node/attacked_image', Image, fnc_callback6)   # subscriber init.
+    sub_target = rospy.Subscriber('/decision_maker_node/target', Twist, fnc_target_callback)
 
     # publishers init.
     pub_yolo_prediction = rospy.Publisher('/yolo_node/yolo_predictions', Float32MultiArray, queue_size=1)   # publisher1 initialization.
@@ -75,7 +83,11 @@ if __name__=='__main__':
             np_im = np.array(np_im)
             with torch.no_grad():
                 x_image = torch.FloatTensor(np_im).to(DEVICE).permute(2, 0, 1).unsqueeze(0)/255
-                cv2_images_uint8, prediction_np = YOLO_MODEL.draw_image_w_predictions(x_image.detach())
+                if TARGET_RECEIVED is not None:
+                    action = (TARGET_RECEIVED.linear.x, TARGET_RECEIVED.linear.y, TARGET_RECEIVED.linear.z, TARGET_RECEIVED.angular.x)
+                    cv2_images_uint8, prediction_np = YOLO_MODEL.draw_image_w_prediction_and_target(x_image.detach(), action)
+                else:
+                    cv2_images_uint8, prediction_np = YOLO_MODEL.draw_image_w_predictions(x_image.detach())
             
             ### Publish the prediction results in results.xyxy[0]) ###
             #                   x1           y1           x2           y2   confidence        class
