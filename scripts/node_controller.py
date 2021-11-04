@@ -45,10 +45,14 @@ if __name__=='__main__':
     tgt_box    = Vector3()
     vel_cmd_tracking = Vector3()
 
+    t_step = 0
+
     ##############################
     ### Instructions in a loop ###
     ##############################
     while not rospy.is_shutdown():
+
+        t_step += 1
 
         if STATE_ARRAY_RECEIVED is not None:
 
@@ -134,5 +138,15 @@ if __name__=='__main__':
         pub_body_angle.publish(body_angle)
         pub_tgt_box.publish(tgt_box)
         pub_vel_cmd.publish(vel_cmd_tracking)
+
+        try:
+            experiment_done_done = rospy.get_param('experiment_done')
+        except:
+            experiment_done_done = False
+
+        if experiment_done_done and t_step > FREQ_LOW_LEVEL*3:
+            print('experiment_done_done')
+            rospy.signal_shutdown('Finished 100 Episodes!')
+
 
         rate.sleep()

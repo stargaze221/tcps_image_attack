@@ -7,10 +7,9 @@ from std_msgs.msg import Float32MultiArray        # See https://gist.github.com/
 from std_msgs.msg import MultiArrayDimension      # See http://docs.ros.org/api/std_msgs/html/msg/MultiArrayLayout.html
 from sensor_msgs.msg import Image
 import numpy as np
-import torch
 import cv2
 
-from setting_params import N_ACT_DIM, N_STATE_DIM, DEVICE, SETTING, FREQ_HIGH_LEVEL, N_WINDOW
+from setting_params import SETTING, FREQ_HIGH_LEVEL, DEVICE
 from agents.dynamic_auto_encoder import DynamicAutoEncoderAgent
 from agents.rl_agent import DDPGAgent
 
@@ -45,12 +44,13 @@ if __name__ == '__main__':
     rate=rospy.Rate(FREQ_HIGH_LEVEL)
 
     # Training agents init
+    SETTING['name'] = rospy.get_param('name')
     state_estimator = DynamicAutoEncoderAgent(SETTING, train=True)
     rl_agent = DDPGAgent(SETTING)
 
     # Memory init
-    single_trajectory_memory = SingleTrajectoryBuffer(10000)
-    transition_memory = TransitionBuffer(10000)
+    single_trajectory_memory = SingleTrajectoryBuffer(SETTING['N_SingleTrajectoryBuffer'])
+    transition_memory = TransitionBuffer(SETTING['N_TransitionBuffer'])
 
     # msg init. the msg is to send out numpy array.
     msg_mat = Float32MultiArray()
@@ -81,7 +81,7 @@ if __name__ == '__main__':
 
             # pack state transition
             prev_np_state_estimate = np_transition[0]
-            action = np_transition[1][:N_ACT_DIM]
+            action = np_transition[1][:SETTING['N_ACT_DIM']]
             reward = np_transition[1][-1]
             done = np_transition[1][-2]
             np_state_estimate = np_transition[2]
@@ -93,15 +93,20 @@ if __name__ == '__main__':
             ####################################################
             ## CAL THE LOSS FUNCTION & A STEP OF GRAD DESCENT ##
             ####################################################
-            if single_trajectory_memory.len > N_WINDOW and transition_memory.len > N_WINDOW:
+            if single_trajectory_memory.len > SETTING['N_WINDOW'] and transition_memory.len > SETTING['N_WINDOW']:
 
                 # sample minibach
-                batch_obs_img_stream, batch_tgt_stream, batch_state_est_stream = single_trajectory_memory.sample(N_WINDOW)
-                s_arr, a_arr, r_arr, s1_arr, done_arr = transition_memory.sample(8)
+                batch_obs_img_stream, batch_tgt_stream, batch_state_est_stream = single_trajectory_memory.sample(SETTING['N_WINDOW'])
+                s_arr, a_arr, r_arr, s1_arr, done_arr = transition_memory.sample(SETTING['N_MINIBATCH_DDPG'])
 
                 # update the models
                 loss_sys_id = state_estimator.update(batch_obs_img_stream, batch_state_est_stream, batch_tgt_stream)
-                loss_actor, loss_critic = rl_agent.update(s_arr, a_arr, r_arr, s1_arr, done_arr)
+
+                if n_iteration > 2000:
+                    loss_actor, loss_critic = rl_agent.update(s_arr, a_arr, r_arr, s1_arr, done_arr)
+                else:
+                    loss_actor = 0
+                    loss_critic = 0
 
                 # pack up loss values
                 loss_monitor_np = np.array([[loss_sys_id, loss_actor, loss_critic]])
@@ -120,7 +125,18 @@ if __name__ == '__main__':
             except:
                 print('in high_level_decision_trainer, model saving failed!')
 
+        
+        try:
+            experiment_done_done = rospy.get_param('experiment_done')
+        except:
+            experiment_done_done = False
+        if experiment_done_done and n_iteration > FREQ_HIGH_LEVEL*3:
+            rospy.signal_shutdown('Finished 100 Episodes!')
+
+
             
             
         rate.sleep()
+
+        
 

@@ -12,11 +12,9 @@ from sensor_msgs.msg import Image
 from memory import ImageBuffer, ImageTargetBuffer
 from agents.image_attack_agent import ImageAttackTraniner
 
-from setting_params import DEVICE, FREQ_HIGH_LEVEL
+from setting_params import SETTING, DEVICE, FREQ_HIGH_LEVEL
 
-N_MEMORY_SIZE = 10000
-N_MINIBATCH = 3
-IMAGE_TGT_MEMORY = ImageTargetBuffer(N_MEMORY_SIZE)
+IMAGE_TGT_MEMORY = ImageTargetBuffer(SETTING['N_ImageBuffer'])
 
 ### ROS Subscriber Callback ###
 IMAGE_RECEIVED = None
@@ -46,7 +44,8 @@ if __name__=='__main__':
     rate=rospy.Rate(FREQ_HIGH_LEVEL)
 
     # Training agents init
-    agent = ImageAttackTraniner()
+    SETTING['name'] = rospy.get_param('name')
+    agent = ImageAttackTraniner(SETTING)
 
     # msg init. the msg is to send out numpy array.
     msg_mat = Float32MultiArray()
@@ -71,7 +70,7 @@ if __name__=='__main__':
             IMAGE_TGT_MEMORY.add(np_im, act)
 
             # Sample data from the memory
-            minibatch_img, minibatch_act = IMAGE_TGT_MEMORY.sample(N_MINIBATCH) # list of numpy arrays
+            minibatch_img, minibatch_act = IMAGE_TGT_MEMORY.sample(SETTING['N_MINIBATCH_IMG']) # list of numpy arrays
             minibatch_img = np.array(minibatch_img).astype(np.float32) # cast it into a numpy array
             
             ####################################################
@@ -92,5 +91,13 @@ if __name__=='__main__':
                     agent.save_the_model()
                 except:
                     print('In image_attack_train_node, model saving failed!')
+
+        try:
+            experiment_done_done = rospy.get_param('experiment_done')
+        except:
+            experiment_done_done = False
+        if experiment_done_done and n_iteration > FREQ_HIGH_LEVEL*3:
+            rospy.signal_shutdown('Finished 100 Episodes!')
+
                     
         rate.sleep()

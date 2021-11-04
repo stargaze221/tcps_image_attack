@@ -11,8 +11,10 @@ from sensor_msgs.msg import Image
 import numpy as np
 import torch
 import cv2
+import sys
+import roslaunch
 
-from setting_params import N_ACT_DIM, N_STATE_DIM, DEVICE, SETTING, FREQ_HIGH_LEVEL
+from setting_params import SETTING, FREQ_HIGH_LEVEL, DEVICE
 from agents.dynamic_auto_encoder import DynamicAutoEncoderAgent
 from agents.rl_agent import DDPGAgent
 
@@ -74,7 +76,8 @@ def reward1(np_state_obs_received):
             reward = dist2tgt
             print('collision and reward', reward)
         else:
-            reward = dist2tgt- speed  # when it is not terminal uses speed.   WO exp, it looks working. Maybe multiplication ???
+            reward = speed  # when it is not terminal uses speed.   WO exp, it looks working. Maybe multiplication ???
+            #print('online reward', reward)
 
     elif SETTING['reward_function'] == 'negative_distance':
 
@@ -85,7 +88,56 @@ def reward1(np_state_obs_received):
             reward = -dist2tgt
             print('collision and reward', reward)
         else:
-            reward = -dist2tgt- speed  # when it is not terminal uses speed. 
+            reward = - speed  # when it is not terminal uses speed.
+            #print('online reward', reward)
+
+    elif SETTING['reward_function'] == 'move-up':
+
+        if done > 0.5 and collision < 0.5:  # case 1: finised without collision
+            reward = -position[2]
+            print('done and reward', reward)
+        elif done > 0.5 and collision > 0.5: # case 2: finisehd wiht collision
+            reward = -position[2]
+            print('collision and reward', reward)
+        else:
+            reward = -linear_velocity[2]  # when it is not terminal uses speed. 
+            #print('online reward', reward)
+
+    elif SETTING['reward_function'] == 'move-down':
+
+        if done > 0.5 and collision < 0.5:  # case 1: finised without collision
+            reward = position[2]
+            print('done and reward', reward)
+        elif done > 0.5 and collision > 0.5: # case 2: finisehd wiht collision
+            reward = position[2]
+            print('collision and reward', reward)
+        else:
+            reward = linear_velocity[2]  # when it is not terminal uses speed. 
+            #print('online reward', reward)
+    
+    elif SETTING['reward_function'] == 'move-left':
+
+        if done > 0.5 and collision < 0.5:  # case 1: finised without collision
+            reward = position[1]
+            print('done and reward', reward)
+        elif done > 0.5 and collision > 0.5: # case 2: finisehd wiht collision
+            reward = position[1]
+            print('collision and reward', reward)
+        else:
+            reward = linear_velocity[1]  # when it is not terminal uses speed. 
+            #print('online reward', reward)
+
+    elif SETTING['reward_function'] == 'move-right':
+
+        if done > 0.5 and collision < 0.5:  # case 1: finised without collision
+            reward = -position[1]
+            print('done and reward', reward)
+        elif done > 0.5 and collision > 0.5: # case 2: finisehd wiht collision
+            reward = -position[1]
+            print('collision and reward', reward)
+        else:
+            reward = -linear_velocity[1]  # when it is not terminal uses speed. 
+            #print('online reward', reward)
 
     return reward
 
@@ -96,6 +148,10 @@ if __name__ == '__main__':
     Input: image frame
     Outputs: previous state, action, reward, state_estimate
     '''
+    # rospy set param
+    rospy.set_param('experiment_done', False)
+
+
     # rosnode node initialization
     rospy.init_node('high_level_decision_maker')
 
@@ -124,18 +180,28 @@ if __name__ == '__main__':
     bool_ack_msg.data = False
 
     # Decision agents init
+    SETTING['name'] = rospy.get_param('name')
     state_estimator = DynamicAutoEncoderAgent(SETTING, train=False)
     rl_agent = DDPGAgent(SETTING)
 
     # State variables
     count = 0
-    pre_state_est = np.zeros(N_STATE_DIM)
-    prev_np_state_estimate = np.zeros(N_STATE_DIM)
-    prev_np_action = np.zeros(N_ACT_DIM)
+    pre_state_est = np.zeros(SETTING['N_STATE_DIM'])
+    prev_np_state_estimate = np.zeros(SETTING['N_STATE_DIM'])
+    prev_np_action = np.zeros(SETTING['N_ACT_DIM'])
     taget_msg = Twist()
 
     # Log variables and writier
     writer = SummaryWriter()
+
+    ### Write the setting ###    
+    setting_text = ''
+    for k,v in SETTING.items():
+        setting_text += k
+        setting_text += ':'
+        setting_text += str(v)
+        setting_text += '\n'
+    writer.add_text('setting', setting_text)
 
     iteration = 0
     log_count = 0
@@ -160,6 +226,8 @@ if __name__ == '__main__':
             print('Reset Ack')
             bool_ack_msg.data = True
             pub_reset_ack.publish(bool_ack_msg)
+            rl_agent.noise.reset()
+            rl_agent.noise.theta = np.clip(rl_agent.noise.theta + 0.005, 0, 0.95)
         else:
             bool_ack_msg.data = False
             pub_reset_ack.publish(bool_ack_msg)
@@ -203,9 +271,9 @@ if __name__ == '__main__':
             # 2. action                    <-   "action"
             # 3. reward                    <-   "reward"
             # 4. current state estimate    <-   "np_state_estimate"
-            np_transition = np.zeros((3, N_STATE_DIM))
+            np_transition = np.zeros((3, SETTING['N_STATE_DIM']))
             np_transition[0] = prev_np_state_estimate
-            np_transition[1][:N_ACT_DIM] = action
+            np_transition[1][:SETTING['N_ACT_DIM']] = action
             np_transition[1][-1] = reward
             np_transition[1][-2] = done
             np_transition[2] = np_state_estimate
@@ -222,7 +290,7 @@ if __name__ == '__main__':
             prev_np_state_estimate = np_state_estimate
             prev_np_action = action
 
-            torch.cuda.empty_cache()
+            torch.cuda.empty_cache() 
 
             ##################
             ### Log values ###
@@ -234,15 +302,35 @@ if __name__ == '__main__':
                 if collision > 0.5:
                     sum_n_collision +=1
                     print('Collision!', reward)
-                print('Done!', reward)
+                print(n_episode, 'th episode is Done with reward:', reward, '!')
                 avg_reward = sum_reward/t_steps
                 terminal_reward = reward
-                writer.add_scalar('avg_reward', avg_reward, n_episode)
-                writer.add_scalar('terminal_reward', terminal_reward, n_episode)
-                writer.add_scalar('sum_n_collision', sum_n_collision, n_episode)
-                writer.add_scalar('t_steps', t_steps, n_episode)
+                writer.add_scalar('RL/avg_reward', avg_reward, n_episode)
+                writer.add_scalar('RL/terminal_reward', terminal_reward, n_episode)
+                writer.add_scalar('RL/sum_n_collision', sum_n_collision, n_episode)
+                writer.add_scalar('RL/t_steps', t_steps, n_episode)
+                writer.add_scalar('RL/OU_theta', rl_agent.noise.theta, n_episode)
+
+                ### Add terminal states ###
+                body_angle = np_state_obs_received[0]
+                linear_velocity = np_state_obs_received[1]
+                position = np_state_obs_received[2]
+                dist2tgt_speed_accel = np_state_obs_received[3]
+                dist2tgt = dist2tgt_speed_accel[0] 
+                speed = dist2tgt_speed_accel[1]
+
+                writer.add_scalar('RL/terminal_pos_0', position[0], n_episode)
+                writer.add_scalar('RL/terminal_pos_1', position[1], n_episode)
+                writer.add_scalar('RL/terminal_pos_2', position[2], n_episode)
+                writer.add_scalar('RL/terminal_dist', dist2tgt, n_episode)
+
                 t_steps = 0
                 sum_reward = 0
+
+                if n_episode == SETTING['N_Episodes']:
+                    print('We had ', n_episode, ' episodes!')
+                    rospy.set_param('experiment_done', True)
+                    rospy.signal_shutdown('Finished 100 Episodes!')
 
 
         if LOSS_MON_IMAGE_TRAIN_RECEIVED is not None and LOSS_MON_HIGHLEVEL_TRAIN_RECEIVED is not None:
@@ -266,10 +354,11 @@ if __name__ == '__main__':
 
         if log_count == 100:
 
-            writer.add_scalar('loss_image_attack', sum_loss_image_attack/log_count, iteration)
-            writer.add_scalar('loss_sys_id', sum_loss_sys_id/log_count, iteration)
-            writer.add_scalar('loss_critic', sum_loss_critic/log_count, iteration)
-            writer.add_scalar('loss_actor', sum_loss_actor/log_count, iteration)
+            writer.add_scalar('train/loss_image_attack', sum_loss_image_attack/log_count, iteration)
+            writer.add_scalar('train/loss_sys_id', sum_loss_sys_id/log_count, iteration)
+            writer.add_scalar('train/loss_critic', sum_loss_critic/log_count, iteration)
+            writer.add_scalar('train/loss_actor', sum_loss_actor/log_count, iteration)
+            writer.add_scalar('train/episode', n_episode, iteration)
 
             log_count = 0
             sum_loss_image_attack = 0

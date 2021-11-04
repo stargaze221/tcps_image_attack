@@ -2,7 +2,9 @@
 import numpy as np
 import rospy, cv2
 import torch
-import os
+import os, sys
+
+import signal
 
 from std_msgs.msg import Float32MultiArray        # See https://gist.github.com/jarvisschultz/7a886ed2714fac9f5226
 from std_msgs.msg import Float32
@@ -11,7 +13,7 @@ from cv_bridge import CvBridge
 from geometry_msgs.msg import Twist
 
 from agents.image_attack_agent import ImageAttacker
-from setting_params import N_ACT_DIM, DEVICE, SETTING, FREQ_MID_LEVEL
+from setting_params import FREQ_MID_LEVEL, SETTING
 
 IMAGE_RECEIVED = None
 def fnc_img_callback(msg):
@@ -41,7 +43,8 @@ if __name__ == '__main__':
     rate=rospy.Rate(FREQ_MID_LEVEL)
 
     # Training agents init
-    agent = ImageAttacker()
+    SETTING['name'] = rospy.get_param('name')
+    agent = ImageAttacker(SETTING)
 
     # a bridge from cv2 image to ROS image
     mybridge = CvBridge()
@@ -80,5 +83,12 @@ if __name__ == '__main__':
 
             # Publish messages
             pub_attacked_image.publish(attacked_frame)
+
+        try:
+            experiment_done_done = rospy.get_param('experiment_done')
+        except:
+            experiment_done_done = False
+        if experiment_done_done and n_iteration > FREQ_MID_LEVEL*3:
+            rospy.signal_shutdown('Finished 100 Episodes!')
         
         rate.sleep()

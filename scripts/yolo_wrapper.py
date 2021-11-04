@@ -9,9 +9,9 @@ from utils.plots import plot_one_box, color_list
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class YoloWrapper:
-    def __init__(self, model_param_path):
+    def __init__(self, model_param_path, device = DEVICE):
         self.model = attempt_load(model_param_path)
-        self.model.to(DEVICE)
+        self.model.to(device)
         print('model loadded using the file at ', model_param_path)
         self.color = color_list()
 

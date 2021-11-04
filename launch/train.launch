@@ -1,4 +1,5 @@
 <launch>
+    <param name="name" value="yoon"/>
     <node pkg="tcps_image_attack" type="node_airsim.py" name="airsim_node" output="screen">
     </node>
     <node pkg="tcps_image_attack" type="node_yolo.py" name="yolo_node" output="screen">
@@ -12,9 +13,5 @@
     <node pkg="tcps_image_attack" type="node_highlevel_decision_maker.py" name="high_level_decision_maker" output="screen">
     </node>
     <node pkg="tcps_image_attack" type="node_highlevel_decision_trainer.py" name="high_level_decision_trainer" output="screen">
-    </node>
-    <node pkg="tcps_image_attack" type="key_teleop.py" name="key_teleop" output="screen"  launch-prefix="gnome-terminal --command">
-    </node>
-    <node type="rviz" name="rviz" pkg="rviz" args="-d $(find tcps_image_attack)/rviz/config_file.rviz">
     </node>
 </launch>

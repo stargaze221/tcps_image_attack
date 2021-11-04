@@ -15,8 +15,12 @@ from cv_bridge import CvBridge
 from yolo_wrapper import YoloWrapper
 from setting_params import SETTING, FREQ_MID_LEVEL, DEVICE
 
-YOLO_MODEL = YoloWrapper(SETTING['yolov5_param_path'])
+
+DEVICE = torch.device("cpu")
+
+YOLO_MODEL = YoloWrapper(SETTING['yolov5_param_path'], DEVICE)
 YOLO_MODEL.model.eval()
+YOLO_MODEL.model.to(DEVICE)
 FREQ_NODE = FREQ_MID_LEVEL
 
 ### ROS Subscriber Callback ###
@@ -25,7 +29,8 @@ def fnc_img_callback(msg):
     global IMAGE_RECEIVED
     IMAGE_RECEIVED = msg
 
-IMAGE_ATTACK_ON_CMD_RECEIVED = None
+IMAGE_ATTACK_ON_CMD_RECEIVED = Bool()
+IMAGE_ATTACK_ON_CMD_RECEIVED.data=True
 def fnc_callback5(msg):
     global IMAGE_ATTACK_ON_CMD_RECEIVED
     IMAGE_ATTACK_ON_CMD_RECEIVED = msg
@@ -69,10 +74,14 @@ if __name__=='__main__':
     msg_mat.layout.dim[0].label = "height"
     msg_mat.layout.dim[1].label = "width"
 
+    t_step = 0
+
     ##############################
     ### Instructions in a loop ###
     ##############################
     while not rospy.is_shutdown():
+
+        t_step += 1
 
         if IMAGE_RECEIVED is not None:
             if ATTACKED_IMAGE is not None and IMAGE_ATTACK_ON_CMD_RECEIVED is not None and IMAGE_ATTACK_ON_CMD_RECEIVED.data:
@@ -106,5 +115,12 @@ if __name__=='__main__':
             ### Publish the bounding box image ###
             image_message = mybridge.cv2_to_imgmsg(cv2_images_uint8, encoding="passthrough")
             pub_yolo_boundingbox_video.publish(image_message)
+        
+        try:
+            experiment_done_done = rospy.get_param('experiment_done')
+        except:
+            experiment_done_done = False
+        if experiment_done_done  and t_step > FREQ_MID_LEVEL*3:
+            rospy.signal_shutdown('Finished 100 Episodes!')
 
         rate.sleep()
