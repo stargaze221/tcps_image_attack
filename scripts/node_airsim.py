@@ -35,15 +35,11 @@ def fnc_callback3(msg):
     global LANDING_OFF_CMD_RECEIVED
     LANDING_OFF_CMD_RECEIVED = msg
 
-TRACKING_ON_CMD_RECEIVED = None
+TRACKING_ON_CMD_RECEIVED = Bool()
+TRACKING_ON_CMD_RECEIVED.data = True
 def fnc_callback4(msg):
     global TRACKING_ON_CMD_RECEIVED
     TRACKING_ON_CMD_RECEIVED = msg
-
-TRAINING_ON_CMD_RECEIVED = None
-def fnc_callback5(msg):
-    global TRAINING_ON_CMD_RECEIVED
-    TRAINING_ON_CMD_RECEIVED = msg
 
 RESET_ACK_RECEIVED = Bool()
 RESET_ACK_RECEIVED.data = False
@@ -87,9 +83,11 @@ def run_airsim_node():
     vz = 0   # commands to AirSim
     yaw_rate = 0  # commands to AirSim
     DONE = False
+    t_step = 0
 
     # rosnode node initialization
     rospy.init_node('airsim_node')
+    reset(client)
 
     # subscriber init.
     sub_key_cmd         = rospy.Subscriber('/key_teleop/vel_cmd_body_frame', Twist, fnc_callback)
@@ -97,7 +95,6 @@ def run_airsim_node():
     sub_bool_cmd_taking_off = rospy.Subscriber('/key_teleop/taking_off_bool', Bool, fnc_callback2)
     sub_bool_cmd_landing = rospy.Subscriber('/key_teleop/landing_bool', Bool, fnc_callback3)
     sub_bool_cmd_tracking_on = rospy.Subscriber('/key_teleop/tracking_control_bool', Bool, fnc_callback4)
-    sub_bool_cmd_training_mode = rospy.Subscriber('/key_teleop/training_mode_bool', Bool, fnc_callback5)
     sub_highlvl_environment_command = rospy.Subscriber('/key_teleop/highlvl_environment_command', Int32, fnc_callback7)   # subscriber init.
     sub_reset_ack = rospy.Subscriber('/decision_maker_node/reset_ack', Bool, fnc_callback6)
 
@@ -121,6 +118,7 @@ def run_airsim_node():
     ### Instructions in a loop ###
     ##############################
     while not rospy.is_shutdown():
+        t_step+=1
         # Get state value
         state = client.getMultirotorState()
         # s = pprint.pformat(state)
@@ -232,7 +230,7 @@ def run_airsim_node():
             cmd_vx += -CTL_CMD_RECEIVED.z
             cmd_vy += -CTL_CMD_RECEIVED.x
             cmd_vz += -CTL_CMD_RECEIVED.y
-            cmd_yaw += -CTL_CMD_RECEIVED.y
+            cmd_yaw += CTL_CMD_RECEIVED.x
 
         # First order filter for smoothing
         vx = (1-filter_coeff)*cmd_vx + filter_coeff*vx
@@ -269,6 +267,14 @@ def run_airsim_node():
             client.simSetVehiclePose(pose, False)  
             client.confirmConnection()
             client.enableApiControl(True)
+
+        try:
+            experiment_done_done = rospy.get_param('experiment_done')
+        except:
+            experiment_done_done = False
+        if experiment_done_done and t_step>FREQ_LOW_LEVEL*3:
+            reset(client)
+            rospy.signal_shutdown('Finished 100 Episodes!')
 
         # Sleep for Set Rate
         rate.sleep()
