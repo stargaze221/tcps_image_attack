@@ -4,7 +4,7 @@ import numpy as np
 import torch.nn as nn
 
 import os
-from util import get_target_index, make_grid
+from agents.util import get_target_index, make_grid
 from setting_params import DEVICE, SETTING
 from yolo_wrapper import YoloWrapper
 
@@ -26,8 +26,7 @@ class ImageAttackTraniner:
         self.name = setting_dict['name']
         self.env_name = setting_dict['env_name']
         image_size = setting_dict['image_size']
-        self.n_sample_trajectory = setting_dict['n_traj_img']
-        self.n_batch = setting_dict['n_batch_img']
+        
         self.LAMBDA_COORD = setting_dict['LAMBDA_COORD']
         self.LAMBDA_NOOBJ = setting_dict['LAMBDA_NOOBJ']
         self.attack_network = ImageAttackNetwork(image_size[0], image_size[1], 4).to(DEVICE)

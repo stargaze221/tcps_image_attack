@@ -175,6 +175,7 @@ def make_grid(nx=20, ny=20):
     return torch.stack((xv, yv), 2).view((1, 1, ny, nx, 2)).float()
 
 
+
 def get_target_index(anchors, stride, Y_tgt):
 
     ###################################################################
@@ -200,17 +201,22 @@ def get_target_index(anchors, stride, Y_tgt):
 
     ### Index ###
     index = torch.argmin(errors, 1, keepdim=True)
-    index_0 = index//3 # layer 0
+    index_0 = (index/3).floor().long() # layer 0
     index_1 = index%3  # anchors
+
 
     ### The other index ###
     tgt_xy_s = Y_tgt[:,0:2]
     tgt_xy_s = tgt_xy_s.unsqueeze(-1)
-    temp = tgt_xy_s//stride.unsqueeze(0).unsqueeze(0).to(DEVICE)
+    temp = tgt_xy_s/stride.unsqueeze(0).unsqueeze(0).to(DEVICE).floor()
+    temp = torch.floor(temp)
+
+
+    # temp = torch.floor(tgt_xy_s/stride).unsqueeze(0).unsqueeze(0).long().to(DEVICE)
     temp = temp[:,:,index_0].view(-1, 2) # gird in 2D image
     indice = torch.cat([index_0, index_1, temp], dim=1)
 
-    return indice
+    return indice.long()
 
 
 def return_bounding_boxes(results):
@@ -327,13 +333,12 @@ def save_training_checkpoint(state, is_best, episode_count):
 
 # Based on http://math.stackexchange.com/questions/1287634/implementing-ornstein-uhlenbeck-in-matlab
 '''
-I decided not to use OU process. Now, the code below generates i.i.d. Gaussian.
+Discretized OU with zero mu is nothing but an LTI with gaussian additive noise.
 '''
-
 
 class OrnsteinUhlenbeckActionNoise:
 
-    def __init__(self, action_dim, mu = 0, theta = 0, sigma = 0.2):   #theta = 0.15, sigma = 0.2
+    def __init__(self, action_dim, mu = 0, theta = 0.15, sigma = 0.2):
         self.action_dim = action_dim
         self.mu = mu
         self.theta = theta
@@ -344,17 +349,15 @@ class OrnsteinUhlenbeckActionNoise:
         self.X = np.ones(self.action_dim) * self.mu
 
     def sample(self):
-        '''
-        dx = self.theta * (self.mu - self.X)
+        dx = self.theta * (self.mu - self.X)   # Eigen value less then 1
         dx = dx + self.sigma * np.random.randn(len(self.X))
         self.X = self.X + dx
-        '''
-        return self.sigma * np.random.randn(len(self.X)) #self.X
+        return self.X
 
 
 # use this to plot Ornstein Uhlenbeck random motion
 if __name__ == '__main__':
-	ou = OrnsteinUhlenbeckActionNoise(1)
+	ou = OrnsteinUhlenbeckActionNoise(1, 2, 0.01 , 0.2)
 	states = []
 	for i in range(1000):
 		states.append(ou.sample())

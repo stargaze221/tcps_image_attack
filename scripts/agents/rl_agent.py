@@ -37,11 +37,11 @@ class DDPGAgent:
         :return:
         """
 
-        self.state_dim = setting_dict['state_dim']
-        self.action_dim = setting_dict['action_dim']
-        self.action_lim = setting_dict['action_lim']
+        self.state_dim = setting_dict['N_STATE_DIM']
+        self.action_dim = setting_dict['N_ACT_DIM']
+        self.action_lim = setting_dict['ACTION_LIM']
         self.iter = 0
-        self.noise = OrnsteinUhlenbeckActionNoise(self.action_dim)
+        self.noise = OrnsteinUhlenbeckActionNoise(self.action_dim, mu=0, theta=setting_dict['noise_theta'], sigma=setting_dict['noise_sigma'])
 
         self.actor = Actor(self.state_dim, self.action_dim, self.action_lim).to(DEVICE)
         self.target_actor = Actor(self.state_dim, self.action_dim, self.action_lim).to(DEVICE)
@@ -53,8 +53,6 @@ class DDPGAgent:
 
         hard_update(self.target_actor, self.actor)
         hard_update(self.target_critic, self.critic)
-
-        self.batch_size = setting_dict['n_batch_ddpg']
 
     def get_exploitation_action(self, state):
         """
