@@ -1,4 +1,4 @@
-from nn_networks.dynamic_autoenc_nn import DynamicAutoEncoderNetwork
+from nn_networks.dynamic_autoenc_nn import DynamicAutoEncoderNetwork, SmallerDynamicAutoEncoderNetwork
 
 import torch
 import torch.nn.functional as F
@@ -29,9 +29,13 @@ class DynamicAutoEncoderAgent:
         lr_estimator = setting_dict['lr_sys_id']
         betas = setting_dict['betas']
         image_size = setting_dict['encoder_image_size']
-        action_dim = setting_dict['action_dim']
-        state_dim = setting_dict['state_dim']
-        self.nn_model = DynamicAutoEncoderNetwork(image_size, action_dim, state_dim).to(DEVICE)
+        action_dim = setting_dict['N_ACT_DIM']
+        state_dim = setting_dict['N_STATE_DIM']
+
+        if image_size == (112, 112):
+            self.nn_model = SmallerDynamicAutoEncoderNetwork(image_size, action_dim, state_dim).to(DEVICE)
+        else:
+            self.nn_model = DynamicAutoEncoderNetwork(image_size, action_dim, state_dim).to(DEVICE)
 
         self.if_train = train
 
