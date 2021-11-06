@@ -227,7 +227,7 @@ if __name__ == '__main__':
             bool_ack_msg.data = True
             pub_reset_ack.publish(bool_ack_msg)
             rl_agent.noise.reset()
-            rl_agent.noise.theta = np.clip(rl_agent.noise.theta + 0.005, 0, 0.95)
+            rl_agent.noise.theta = np.clip(rl_agent.noise.theta + 0.001, 0, 0.95)
         else:
             bool_ack_msg.data = False
             pub_reset_ack.publish(bool_ack_msg)

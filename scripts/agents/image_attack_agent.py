@@ -29,6 +29,7 @@ class ImageAttackTraniner:
         
         self.LAMBDA_COORD = setting_dict['LAMBDA_COORD']
         self.LAMBDA_NOOBJ = setting_dict['LAMBDA_NOOBJ']
+        self.LAMBDA_L2 = setting_dict['LAMBDA_L2']
         self.attack_network = ImageAttackNetwork(image_size[0], image_size[1], 4).to(DEVICE)
 
         ### Yolo Model ###
@@ -164,6 +165,7 @@ class ImageAttackTraniner:
                     Confidence = y[..., 4]  
                     error_no_obj_confidence += torch.sum(Confidence**2)
             loss += (self.LAMBDA_COORD*error_xy + self.LAMBDA_COORD*error_wh + error_obj_confidence + self.LAMBDA_NOOBJ*error_no_obj_confidence + error_class)/n_minibatch
+            loss += torch.mean(x_attacked_image**2)*self.LAMBDA_L2
             return loss
 
 
