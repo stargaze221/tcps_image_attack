@@ -159,7 +159,12 @@ def run_airsim_node():
             reset(client)
             print('Collision!')
             DONE_EVENT = 1
-            COLLISION_EVENT =1   
+            COLLISION_EVENT =1
+        elif speed < 0.01:
+            reset(client)
+            print('Stopped!')
+            DONE_EVENT = 1
+            COLLISION_EVENT =0      
         else:
             DONE_EVENT = 0
             COLLISION_EVENT =0
