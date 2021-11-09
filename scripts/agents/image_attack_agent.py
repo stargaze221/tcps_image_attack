@@ -30,6 +30,7 @@ class ImageAttackTraniner:
         self.LAMBDA_COORD = setting_dict['LAMBDA_COORD']
         self.LAMBDA_NOOBJ = setting_dict['LAMBDA_NOOBJ']
         self.LAMBDA_L2 = setting_dict['LAMBDA_L2']
+        self.LAMBDA_Var = setting_dict['LAMBDA_Var']
         self.attack_network = ImageAttackNetwork(image_size[0], image_size[1], 4).to(DEVICE)
 
         ### Yolo Model ###
@@ -58,8 +59,8 @@ class ImageAttackTraniner:
         X = torch.FloatTensor(obs_arr).to(DEVICE).permute(0, 3, 1, 2)  #.permute(0, 3, 1, 2).contiguous()
         X = X/255 # scale.
         Y = torch.FloatTensor(tgt_arr).to(DEVICE)
-        X_attacked = self.make_attacked_images(X,Y)
-        loss = self.calculate_loss(X_attacked, Y)
+        X_attacked, X_adv = self.make_attacked_images(X,Y)
+        loss = self.calculate_loss(X_attacked, X_adv, Y)
         ### Optimization Step ###
         self.optimizerG.zero_grad()
         loss.backward()
@@ -86,9 +87,9 @@ class ImageAttackTraniner:
         Y[:,3] = Y[:,3]*200 + 50  # h = int(200*tgt[3] + 50)
         X_adv = self.attack_network.get_attack_image(X, Y)
         X_attacked = torch.clip(X_adv*self.alpha + X, 0, 1)
-        return X_attacked
+        return X_attacked, X_adv
 
-    def calculate_loss(self, x_attacked_image, tgt):
+    def calculate_loss(self, x_attacked_image, x_adv, tgt):
         """
         X: minibatch image    [(1 x 3 x 448 x 448), ...]
         Y: target coordinates [(x, y, w, h), ...]
@@ -165,7 +166,19 @@ class ImageAttackTraniner:
                     Confidence = y[..., 4]  
                     error_no_obj_confidence += torch.sum(Confidence**2)
             loss += (self.LAMBDA_COORD*error_xy + self.LAMBDA_COORD*error_wh + error_obj_confidence + self.LAMBDA_NOOBJ*error_no_obj_confidence + error_class)/n_minibatch
-            loss += torch.mean(x_attacked_image**2)*self.LAMBDA_L2
+            loss += torch.mean(x_adv**2)*self.LAMBDA_L2
+
+            prob = torch.sigmoid(x_adv)
+            entropy = torch.mean(prob*torch.log(prob))
+
+            loss += entropy
+
+
+
+            # temp = -torch.mean(torch.log(torch.var(x_adv, 0)))*self.LAMBDA_Var
+            # print('tmp', temp.item())
+            print('entropy', entropy.item())
+
             return loss
 
 
