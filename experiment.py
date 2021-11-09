@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import roslaunch
 import rospy
+import subprocess
+import time
 
 
 def run(name):
@@ -29,10 +31,17 @@ if __name__ == "__main__":
     from datetime import datetime
     import tqdm
 
+    
+
+
     for i in tqdm.tqdm(range(5)):
+        roscore = subprocess.Popen('roscore')
+        time.sleep(1)  # wait a bit to be sure the roscore is really launched
         now = datetime.now() # current date and time
         last_name = names.get_last_name()
         date_time = now.strftime("%m_%d_%Y_%H_%M_%S")
         name = last_name + '_' + date_time
 
         run(name)
+
+        roscore.kill()
