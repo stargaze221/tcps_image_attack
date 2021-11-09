@@ -31,10 +31,10 @@ if __name__=='__main__':
     sub1 = rospy.Subscriber('/yolo_node/yolo_predictions', Float32MultiArray, fnc_callback1)
 
     # publishers init.
-    pub_vel_est = rospy.Publisher('/controller_node/vel_est_rcvd', Vector3, queue_size=1)
-    pub_body_angle = rospy.Publisher('/controller_node/body_angle_rcvd', Vector3, queue_size=1)
-    pub_tgt_box = rospy.Publisher('/controller_node/tgt_box_rcvd', Vector3, queue_size=1)
-    pub_vel_cmd = rospy.Publisher('/controller_node/vel_cmd', Vector3, queue_size=1)
+    pub_vel_est = rospy.Publisher('/controller_node/vel_est_rcvd', Vector3, queue_size=10)
+    pub_body_angle = rospy.Publisher('/controller_node/body_angle_rcvd', Vector3, queue_size=10)
+    pub_tgt_box = rospy.Publisher('/controller_node/tgt_box_rcvd', Vector3, queue_size=10)
+    pub_vel_cmd = rospy.Publisher('/controller_node/vel_cmd', Vector3, queue_size=10)
 
     # Running rate
     rate=rospy.Rate(FREQ_LOW_LEVEL)

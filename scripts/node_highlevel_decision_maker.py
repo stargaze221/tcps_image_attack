@@ -163,9 +163,9 @@ if __name__ == '__main__':
     sub_loss_highlevel_train = rospy.Subscriber('/decision_trainer_node/loss_monitor', Float32MultiArray, fnc_loss2_callback)
 
     # publishers init.
-    pub_transition = rospy.Publisher('/decision_maker_node/state_est_transition', Float32MultiArray, queue_size=1) # prev_state_est, action, reward, next_state_est
-    pub_target = rospy.Publisher('/decision_maker_node/target', Twist, queue_size=1) # prev_state_est, action, reward, next_state_est
-    pub_reset_ack = rospy.Publisher('/decision_maker_node/reset_ack', Bool, queue_size=1)
+    pub_transition = rospy.Publisher('/decision_maker_node/state_est_transition', Float32MultiArray, queue_size=10) # prev_state_est, action, reward, next_state_est
+    pub_target = rospy.Publisher('/decision_maker_node/target', Twist, queue_size=10) # prev_state_est, action, reward, next_state_est
+    pub_reset_ack = rospy.Publisher('/decision_maker_node/reset_ack', Bool, queue_size=10)
 
     # Running rate
     rate=rospy.Rate(FREQ_HIGH_LEVEL)

@@ -168,10 +168,10 @@ class ImageAttackTraniner:
             loss += (self.LAMBDA_COORD*error_xy + self.LAMBDA_COORD*error_wh + error_obj_confidence + self.LAMBDA_NOOBJ*error_no_obj_confidence + error_class)/n_minibatch
             loss += torch.mean(x_adv**2)*self.LAMBDA_L2
 
-            prob = torch.sigmoid(x_adv)
-            entropy = torch.mean(prob*torch.log(prob))
+            prob = (x_adv+1)/2
+            entropy = -torch.mean(prob*torch.log(prob))
 
-            loss += entropy
+            loss += entropy*self.LAMBDA_Var*100
 
 
 

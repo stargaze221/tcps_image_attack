@@ -37,7 +37,7 @@ if __name__ == '__main__':
     sub_target = rospy.Subscriber('/decision_maker_node/target', Twist, fnc_target_callback)
 
     # publishers init.
-    pub_attacked_image = rospy.Publisher('/attack_generator_node/attacked_image', Image, queue_size=1)
+    pub_attacked_image = rospy.Publisher('/attack_generator_node/attacked_image', Image, queue_size=10)
 
     # Running rate
     rate=rospy.Rate(FREQ_MID_LEVEL)
