@@ -183,7 +183,7 @@ class ImageAttackTraniner:
 
             # temp = -torch.mean(torch.log(torch.var(x_adv, 0)))*self.LAMBDA_Var
             # print('tmp', temp.item())
-            print('entropy', entropy.item())
+            #print('entropy', entropy.item())
 
             return loss
 

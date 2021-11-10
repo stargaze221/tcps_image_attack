@@ -47,20 +47,42 @@ def fnc_loss2_callback(msg):
     LOSS_MON_HIGHLEVEL_TRAIN_RECEIVED = msg
 
 
-def reward1(np_state_obs_received):
+def reward_function(np_state_obs_received):
     body_angle = np_state_obs_received[0]
     linear_velocity = np_state_obs_received[1]
     position = np_state_obs_received[2]
-    dist2tgt_speed_accel = np_state_obs_received[3]
+    dist2tgt_speed_collision = np_state_obs_received[3]
 
-    dist2tgt = dist2tgt_speed_accel[0] 
-    speed = dist2tgt_speed_accel[1] 
+    dist2tgt = dist2tgt_speed_collision[0] 
+    speed = dist2tgt_speed_collision[1]
+    collision = dist2tgt_speed_collision[2]
 
-
-    other_finite_state = np_state_obs_received[4]
-    done = other_finite_state[0]
-    collision = other_finite_state[1]
-
+    ###################################################
+    ### Check reset condition and reset environment ###
+    ###################################################
+    if dist2tgt < 16 and speed < 0.1:    
+        print('Reached to the target and stopped!')
+        done = 1
+        rospy.set_param('episode_done', True)
+    elif dist2tgt < 10:
+        print('Close to the target')
+        done = 1
+        rospy.set_param('episode_done', True)
+    elif dist2tgt > 40:
+        print('Target lost!')
+        done = 1
+        rospy.set_param('episode_done', True)
+    elif collision > 0.5:
+        print('Collision!')
+        done = 1
+        rospy.set_param('episode_done', True)
+    elif speed < 0.01:
+        print('Stopped!')
+        done = 1
+        rospy.set_param('episode_done', True)
+    else:
+        done = 0
+    
     '''
     linear_velocity[0]  +: backward (moving away from the target)   -: forward (getting close to the target)
     linear_velocity[1]  +: moving to left                           -: move to right
@@ -139,7 +161,7 @@ def reward1(np_state_obs_received):
             reward = -linear_velocity[1]  # when it is not terminal uses speed. 
             #print('online reward', reward)
 
-    return reward
+    return reward, done, collision
 
 
 
@@ -150,6 +172,7 @@ if __name__ == '__main__':
     '''
     # rospy set param
     rospy.set_param('experiment_done', False)
+    rospy.set_param('episode_done', False)
 
 
     # rosnode node initialization
@@ -215,6 +238,8 @@ if __name__ == '__main__':
     sum_n_collision = 0
     n_episode = 0
 
+    error_count = 0
+
     while not rospy.is_shutdown():
         
         count += 1
@@ -237,8 +262,11 @@ if __name__ == '__main__':
             try:
                 state_estimator.load_the_model()
                 rl_agent.load_the_model()
+                error_count = 0
             except:
-                print('In high_level_decision_maker, model loading failed!')
+                error_count +=1
+                if error_count > 3:
+                    print('In high_level_decision_maker, model loading failed!')
 
         if IMAGE_RECEIVED is not None and STATE_OBS_RECEIVED is not None:
             with torch.no_grad(): 
@@ -261,10 +289,7 @@ if __name__ == '__main__':
             height = STATE_OBS_RECEIVED.layout.dim[0].size
             width = STATE_OBS_RECEIVED.layout.dim[1].size
             np_state_obs_received = np.array(STATE_OBS_RECEIVED.data).reshape((height, width))
-            other_finite_state = np_state_obs_received[4]
-            done = other_finite_state[0]
-            collision = other_finite_state[1]
-            reward = reward1(np_state_obs_received)
+            reward, done, collision = reward_function(np_state_obs_received)
 
             ### State Transition to Pack ###
             # 1. previous state estimate   <-   "prev_np_state_estimate"

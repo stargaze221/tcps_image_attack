@@ -65,7 +65,7 @@ if __name__ == '__main__':
                 error_count = 0
             except:
                 error_count +=1
-                if error_count > 10:
+                if error_count > 3:
                     print('In image_attack_node, model loading failed more than 10 times!')
 
         # Image generation

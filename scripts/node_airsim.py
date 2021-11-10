@@ -124,6 +124,7 @@ def run_airsim_node():
         # s = pprint.pformat(state)
         # print("state: %s" % s)
         collision_state = client.simGetCollisionInfo()
+        #print('collision_state', collision_state.has_collided)
         state_orientation = state.kinematics_estimated.orientation
         body_angle = R.from_quat(state_orientation.to_numpy_array()).as_euler('zxy', degrees=False)
         body_yaw_angle = body_angle[0] - np.pi
@@ -134,66 +135,8 @@ def run_airsim_node():
         distance_to_target = np.linalg.norm(target_position-position)
         speed = np.linalg.norm(linear_velocity)
         acceleration  = np.linalg.norm(state.kinematics_estimated.linear_acceleration.to_numpy_array())
-        dist2tgt_speed_accel = np.array([distance_to_target, speed, acceleration])
-        ###################################################
-        ### Check reset condition and reset environment ###
-        ###################################################
-        
-
-        if distance_to_target < 16 and speed < 0.1:
-            reset(client)
-            print('Reached to the target and stopped!')
-            DONE_EVENT = 1
-            COLLISION_EVENT =0
-        elif distance_to_target < 10:
-            reset(client)
-            print('Close to the target')
-            DONE_EVENT = 1
-            COLLISION_EVENT =0
-        elif distance_to_target > 40:
-            reset(client)
-            print('Target lost!')
-            DONE_EVENT = 1
-            COLLISION_EVENT =0
-        elif collision_state.has_collided:
-            reset(client)
-            print('Collision!')
-            DONE_EVENT = 1
-            COLLISION_EVENT =1
-        elif speed < 0.01:
-            reset(client)
-            print('Stopped!')
-            DONE_EVENT = 1
-            COLLISION_EVENT =0      
-        else:
-            DONE_EVENT = 0
-            COLLISION_EVENT =0
-        
-        #########################
-        ### Reset Handshaking ###
-        #########################
-        Ack = RESET_ACK_RECEIVED.data
-        if DONE_EVENT > 0.5: # at onset of done
-            print('Done event!')
-            if not(Ack): # Not Ack Yet!
-                DONE = True # Hold DONE value as True
-                done_val = 1
-                collision_val = COLLISION_EVENT
-                other_finite_state = np.array([done_val, collision_val, 0])
-                np_state_terminal = np.stack([body_angle, linear_velocity, position, dist2tgt_speed_accel, other_finite_state])
-        else: # during other time or waiting
-            if Ack:  # Ack!
-                DONE = False
-                done_val = 0
-                collision_val = 0
-        bool_reset_msg.data = DONE 
-        pub_env_reset.publish(bool_reset_msg)
-
-        if DONE:
-            np_state = np_state_terminal
-        else:
-            other_finite_state = np.array([done_val, collision_val, 0])
-            np_state = np.stack([body_angle, linear_velocity, position, dist2tgt_speed_accel, other_finite_state])
+        dist2tgt_speed_collision = np.array([distance_to_target, speed, collision_state.has_collided])
+        np_state = np.stack([body_angle, linear_velocity, position, dist2tgt_speed_collision])
 
         msg_mat.layout.dim[0].size = np_state.shape[0]
         msg_mat.layout.dim[1].size = np_state.shape[1]
@@ -248,36 +191,34 @@ def run_airsim_node():
 
 
         # Send enviornment command to Airsim
-        #if (KEY_CMD_RECEIVED is not None) and (KEY_CMD_RECEIVED.angular.x>0):
         if TAKING_OFF_CMD_RECEIVED is not None and TAKING_OFF_CMD_RECEIVED.data and not ON_FLIGHT:
             print('Force Taking Off Command!')
             client.confirmConnection()
             client.enableApiControl(True)
             client.takeoffAsync().join()
             ON_FLIGHT = True
-           
-        #elif (KEY_CMD_RECEIVED is not None) and (KEY_CMD_RECEIVED.angular.x<0):
         elif LANDING_OFF_CMD_RECEIVED is not None and LANDING_OFF_CMD_RECEIVED.data and ON_FLIGHT:
             print('Emergency Landing!')
             client.landAsync().join()
             ON_FLIGHT = False
-
         elif ENVIRONMENT_CMD_RECEIVED is not None and ENVIRONMENT_CMD_RECEIVED.data == 1:
             print('Reset!')
-            client.reset()
-            pose = client.simGetVehiclePose("")
-            pose.position.z_val += np.random.uniform(-5, -2)    #random [-5, 2]#
-            pose.position.y_val += np.random.uniform(-5.0, 5.0) #random [-2.5, 2.5]# 
+            reset(client)
 
-            client.simSetVehiclePose(pose, False)  
-            client.confirmConnection()
-            client.enableApiControl(True)
 
         try:
-            experiment_done_done = rospy.get_param('experiment_done')
+            train_episode_done = rospy.get_param('episode_done')
         except:
-            experiment_done_done = False
-        if experiment_done_done and t_step>FREQ_LOW_LEVEL*3:
+            train_episode_done = False
+        if train_episode_done and t_step>FREQ_LOW_LEVEL*3:
+            reset(client)
+            rospy.set_param('episode_done', False)
+
+        try:
+            experiment_done = rospy.get_param('experiment_done')
+        except:
+            experiment_done = False
+        if experiment_done and t_step>FREQ_LOW_LEVEL*3:
             reset(client)
             rospy.signal_shutdown('Finished 100 Episodes!')
 
