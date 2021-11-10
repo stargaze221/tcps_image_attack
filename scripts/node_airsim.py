@@ -41,12 +41,6 @@ def fnc_callback4(msg):
     global TRACKING_ON_CMD_RECEIVED
     TRACKING_ON_CMD_RECEIVED = msg
 
-RESET_ACK_RECEIVED = Bool()
-RESET_ACK_RECEIVED.data = False
-def fnc_callback6(msg):
-    global RESET_ACK_RECEIVED
-    RESET_ACK_RECEIVED = msg
-
 ENVIRONMENT_CMD_RECEIVED = None
 def fnc_callback7(msg):
     global ENVIRONMENT_CMD_RECEIVED
@@ -101,12 +95,10 @@ def run_airsim_node():
     sub_bool_cmd_landing = rospy.Subscriber('/key_teleop/landing_bool', Bool, fnc_callback3)
     sub_bool_cmd_tracking_on = rospy.Subscriber('/key_teleop/tracking_control_bool', Bool, fnc_callback4)
     sub_highlvl_environment_command = rospy.Subscriber('/key_teleop/highlvl_environment_command', Int32, fnc_callback7)   # subscriber init.
-    sub_reset_ack = rospy.Subscriber('/decision_maker_node/reset_ack', Bool, fnc_callback6)
 
     # publishers init.
     pub_camera_frame = rospy.Publisher('/airsim_node/camera_frame', Image, queue_size=1)
     pub_state_obs_values = rospy.Publisher('/airsim_node/state_obs_values', Float32MultiArray, queue_size=1)
-    pub_env_reset = rospy.Publisher('/airsim_node/reset_bool', Bool, queue_size=1)
     # msg init. the msg is to send out state value array.
     msg_mat = Float32MultiArray()
     msg_mat.layout.dim.append(MultiArrayDimension())
@@ -221,6 +213,7 @@ def run_airsim_node():
             if n_reset == 0:
                 reset(client)
                 n_reset = 1
+                t_step = 0
                 rospy.set_param('done_ack', True)
             else:
                 n_reset = 0

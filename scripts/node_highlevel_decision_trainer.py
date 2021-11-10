@@ -101,12 +101,13 @@ if __name__ == '__main__':
 
                 # update the models
                 loss_sys_id = state_estimator.update(batch_obs_img_stream, batch_state_est_stream, batch_tgt_stream)
+                loss_actor, loss_critic = rl_agent.update(s_arr, a_arr, r_arr, s1_arr, done_arr)
 
-                if n_iteration > 2000:
-                    loss_actor, loss_critic = rl_agent.update(s_arr, a_arr, r_arr, s1_arr, done_arr)
-                else:
-                    loss_actor = 0
-                    loss_critic = 0
+                # if n_iteration > 2000:
+                #     loss_actor, loss_critic = rl_agent.update(s_arr, a_arr, r_arr, s1_arr, done_arr)
+                # else:
+                #     loss_actor = 0
+                #     loss_critic = 0
 
                 # pack up loss values
                 loss_monitor_np = np.array([[loss_sys_id, loss_actor, loss_critic]])
