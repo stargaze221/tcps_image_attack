@@ -99,9 +99,9 @@ def run_airsim_node():
     sub_reset_ack = rospy.Subscriber('/decision_maker_node/reset_ack', Bool, fnc_callback6)
 
     # publishers init.
-    pub_camera_frame = rospy.Publisher('/airsim_node/camera_frame', Image, queue_size=10)
-    pub_state_obs_values = rospy.Publisher('/airsim_node/state_obs_values', Float32MultiArray, queue_size=10)
-    pub_env_reset = rospy.Publisher('/airsim_node/reset_bool', Bool, queue_size=10)
+    pub_camera_frame = rospy.Publisher('/airsim_node/camera_frame', Image, queue_size=3)
+    pub_state_obs_values = rospy.Publisher('/airsim_node/state_obs_values', Float32MultiArray, queue_size=3)
+    pub_env_reset = rospy.Publisher('/airsim_node/reset_bool', Bool, queue_size=3)
     # msg init. the msg is to send out state value array.
     msg_mat = Float32MultiArray()
     msg_mat.layout.dim.append(MultiArrayDimension())

@@ -38,7 +38,7 @@ if __name__=='__main__':
     sub_target = rospy.Subscriber('/decision_maker_node/target', Twist, fnc_target_callback)
 
     # publishers init.
-    pub_loss_monitor = rospy.Publisher('/image_attack_train_node/loss_monitor', Float32MultiArray, queue_size=10)   # publisher1 initialization.
+    pub_loss_monitor = rospy.Publisher('/image_attack_train_node/loss_monitor', Float32MultiArray, queue_size=3)   # publisher1 initialization.
 
     # Running rate
     rate=rospy.Rate(FREQ_HIGH_LEVEL)
