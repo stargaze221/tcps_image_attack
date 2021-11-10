@@ -24,6 +24,7 @@ def run(name):
             break
     # 3 seconds later
     launch.shutdown()
+    
 
 if __name__ == "__main__":
 
@@ -44,4 +45,5 @@ if __name__ == "__main__":
 
         run(name)
 
-        roscore.kill()
+        #roscore.kill()
+        roscore.terminate()

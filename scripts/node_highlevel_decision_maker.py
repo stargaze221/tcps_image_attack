@@ -63,25 +63,26 @@ def reward_function(np_state_obs_received):
     if dist2tgt < 16 and speed < 0.1:    
         print('Reached to the target and stopped!')
         done = 1
-        rospy.set_param('episode_done', True)
+        
     elif dist2tgt < 10:
         print('Close to the target')
         done = 1
-        rospy.set_param('episode_done', True)
+        
     elif dist2tgt > 40:
         print('Target lost!')
         done = 1
-        rospy.set_param('episode_done', True)
+        
     elif collision > 0.5:
         print('Collision!')
         done = 1
-        rospy.set_param('episode_done', True)
+        
     elif speed < 0.01:
         print('Stopped!')
         done = 1
-        rospy.set_param('episode_done', True)
+        
     else:
         done = 0
+        
     
     '''
     linear_velocity[0]  +: backward (moving away from the target)   -: forward (getting close to the target)
@@ -240,6 +241,10 @@ if __name__ == '__main__':
 
     error_count = 0
 
+    done = False
+
+    n_written = 0
+
     while not rospy.is_shutdown():
         
         count += 1
@@ -289,31 +294,52 @@ if __name__ == '__main__':
             height = STATE_OBS_RECEIVED.layout.dim[0].size
             width = STATE_OBS_RECEIVED.layout.dim[1].size
             np_state_obs_received = np.array(STATE_OBS_RECEIVED.data).reshape((height, width))
-            reward, done, collision = reward_function(np_state_obs_received)
+            reward, onset, collision = reward_function(np_state_obs_received)
+
+            ############################################
+            ### Dealing with the termination moments ###
+            ############################################
+            if done > 0.5 and rospy.get_param('done_ack'): # Condition 1: Done & ack
+                done = 0 # meaning done=False and going=True
+                rospy.set_param('episode_done', False)
+            elif done < 0.5 and onset > 0.5: # Condition 2: going & oneset
+                done = 1 # meaning done=True and going=False
+                rospy.set_param('episode_done', True)
+            elif done < 0.5 and onset < 0.5: # Condition 3: going & !oneset
+                done = 0
+            elif done > 0.5 and not (rospy.get_param('done_ack')): # Condition 4: Done & !ack
+                done = 1
 
             ### State Transition to Pack ###
             # 1. previous state estimate   <-   "prev_np_state_estimate"
             # 2. action                    <-   "action"
             # 3. reward                    <-   "reward"
             # 4. current state estimate    <-   "np_state_estimate"
-            np_transition = np.zeros((3, SETTING['N_STATE_DIM']))
-            np_transition[0] = prev_np_state_estimate
-            np_transition[1][:SETTING['N_ACT_DIM']] = action
-            np_transition[1][-1] = reward
-            np_transition[1][-2] = done
-            np_transition[2] = np_state_estimate
-            msg_mat_transition.layout.dim[0].size = np_transition.shape[0]
-            msg_mat_transition.layout.dim[1].size = np_transition.shape[1]
-            msg_mat_transition.layout.dim[0].stride = np_transition.shape[0]*np_transition.shape[1]
-            msg_mat_transition.layout.dim[1].stride = np_transition.shape[1]
-            msg_mat_transition.layout.data_offset = 0
-            msg_mat_transition.data = np_transition.flatten().tolist()
-            ### Publish the state transition matrix ###
-            pub_transition.publish(msg_mat_transition)
 
-            ### Save the current state value.
-            prev_np_state_estimate = np_state_estimate
-            prev_np_action = action
+            if done > 0.5:
+                print('waiting to publish!')
+                pre_state_est = np.zeros(SETTING['N_STATE_DIM'])
+                prev_np_state_estimate = np.zeros(SETTING['N_STATE_DIM'])
+                prev_np_action = np.zeros(SETTING['N_ACT_DIM'])
+            else:
+                np_transition = np.zeros((3, SETTING['N_STATE_DIM']))
+                np_transition[0] = prev_np_state_estimate
+                np_transition[1][:SETTING['N_ACT_DIM']] = action
+                np_transition[1][-1] = reward
+                np_transition[1][-2] = done
+                np_transition[2] = np_state_estimate
+                msg_mat_transition.layout.dim[0].size = np_transition.shape[0]
+                msg_mat_transition.layout.dim[1].size = np_transition.shape[1]
+                msg_mat_transition.layout.dim[0].stride = np_transition.shape[0]*np_transition.shape[1]
+                msg_mat_transition.layout.dim[1].stride = np_transition.shape[1]
+                msg_mat_transition.layout.data_offset = 0
+                msg_mat_transition.data = np_transition.flatten().tolist()
+                ### Publish the state transition matrix ###
+                pub_transition.publish(msg_mat_transition)
+
+                ### Save the current state value.
+                prev_np_state_estimate = np_state_estimate
+                prev_np_action = action
 
             torch.cuda.empty_cache() 
 
@@ -322,12 +348,14 @@ if __name__ == '__main__':
             ##################
             sum_reward += reward
             t_steps += 1
-            if done > 0.5:
+            if done > 0.5 and n_written == 0:
+                n_written = 0
                 n_episode += 1
                 if collision > 0.5:
                     sum_n_collision +=1
                     print('Collision!', reward)
-                print(n_episode, 'th episode is Done with reward:', reward, '!')
+                print(n_episode, 'th episode is Done with reward:', reward)
+                print('with total time steps at', t_steps, '!')
                 avg_reward = sum_reward/t_steps
                 terminal_reward = reward
                 writer.add_scalar('RL/avg_reward', avg_reward, n_episode)
@@ -356,6 +384,11 @@ if __name__ == '__main__':
                     print('We had ', n_episode, ' episodes!')
                     rospy.set_param('experiment_done', True)
                     rospy.signal_shutdown('Finished 100 Episodes!')
+                
+                n_written = 1
+            else:
+                n_written = 0
+
 
 
         if LOSS_MON_IMAGE_TRAIN_RECEIVED is not None and LOSS_MON_HIGHLEVEL_TRAIN_RECEIVED is not None:

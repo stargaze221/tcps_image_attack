@@ -85,6 +85,11 @@ def run_airsim_node():
     DONE = False
     t_step = 0
 
+    n_reset = 0
+
+
+    rospy.set_param('done_ack', False)
+
     # rosnode node initialization
     rospy.init_node('airsim_node')
     reset(client)
@@ -99,9 +104,9 @@ def run_airsim_node():
     sub_reset_ack = rospy.Subscriber('/decision_maker_node/reset_ack', Bool, fnc_callback6)
 
     # publishers init.
-    pub_camera_frame = rospy.Publisher('/airsim_node/camera_frame', Image, queue_size=3)
-    pub_state_obs_values = rospy.Publisher('/airsim_node/state_obs_values', Float32MultiArray, queue_size=3)
-    pub_env_reset = rospy.Publisher('/airsim_node/reset_bool', Bool, queue_size=3)
+    pub_camera_frame = rospy.Publisher('/airsim_node/camera_frame', Image, queue_size=1)
+    pub_state_obs_values = rospy.Publisher('/airsim_node/state_obs_values', Float32MultiArray, queue_size=1)
+    pub_env_reset = rospy.Publisher('/airsim_node/reset_bool', Bool, queue_size=1)
     # msg init. the msg is to send out state value array.
     msg_mat = Float32MultiArray()
     msg_mat.layout.dim.append(MultiArrayDimension())
@@ -112,6 +117,8 @@ def run_airsim_node():
     mybridge = CvBridge()
     # Running rate
     rate=rospy.Rate(FREQ_LOW_LEVEL)
+
+    
 
     
     ##############################
@@ -211,8 +218,15 @@ def run_airsim_node():
         except:
             train_episode_done = False
         if train_episode_done and t_step>FREQ_LOW_LEVEL*3:
-            reset(client)
-            rospy.set_param('episode_done', False)
+            if n_reset == 0:
+                reset(client)
+                n_reset = 1
+                rospy.set_param('done_ack', True)
+            else:
+                n_reset = 0
+            
+            
+        
 
         try:
             experiment_done = rospy.get_param('experiment_done')
@@ -220,6 +234,7 @@ def run_airsim_node():
             experiment_done = False
         if experiment_done and t_step>FREQ_LOW_LEVEL*3:
             reset(client)
+            rospy.set_param('done_ack', True)
             rospy.signal_shutdown('Finished 100 Episodes!')
 
         # Sleep for Set Rate

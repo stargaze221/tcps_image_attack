@@ -34,8 +34,8 @@ SETTING.update({'N_SingleTrajectoryBuffer':1000, 'N_TransitionBuffer':1000, 'N_I
 SETTING.update({'LAMBDA_COORD':0.001, 'LAMBDA_NOOBJ':0.001, 'LAMBDA_L2':100, 'LAMBDA_Var':1})
 
 # Reward Choice
-#SETTING.update({'reward_function': 'positive_distance'})
-SETTING.update({'reward_function': 'negative_distance'})
+SETTING.update({'reward_function': 'positive_distance'})
+#SETTING.update({'reward_function': 'negative_distance'})
 #SETTING.update({'reward_function': 'move-up'})
 #SETTING.update({'reward_function': 'move-down'})
 #SETTING.update({'reward_function': 'move-left'})
