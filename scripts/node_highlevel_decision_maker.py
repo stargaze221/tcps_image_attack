@@ -52,19 +52,19 @@ def reward_function(state_obs, t_steps):
     collision = dist2tgt_speed_collision[2]
 
     # Check reset condition and reset environment
-    if dist2tgt < 16 and speed < 0.1 and t_steps > FREQ_HIGH_LEVEL:    
+    if dist2tgt < 16 and speed < 0.1 and t_steps > FREQ_HIGH_LEVEL*3:    
         print('Reached to the target and stopped!')
         done = 1
-    elif dist2tgt < 10 and t_steps > FREQ_HIGH_LEVEL:
+    elif dist2tgt < 10 and t_steps > FREQ_HIGH_LEVEL*3:
         print('Close to the target')
         done = 1
-    elif dist2tgt > 40 and t_steps > FREQ_HIGH_LEVEL:
+    elif dist2tgt > 40 and t_steps > FREQ_HIGH_LEVEL*3:
         print('Target lost!')
         done = 1    
-    elif collision > 0.5 and t_steps > FREQ_HIGH_LEVEL:
+    elif collision > 0.5 and t_steps > FREQ_HIGH_LEVEL*3:
         print('Collision!')
         done = 1
-    elif speed < 0.01 and t_steps > FREQ_HIGH_LEVEL:
+    elif speed < 0.01 and t_steps > FREQ_HIGH_LEVEL*3:
         print('Not moving! Stopped!')
         done = 1
     else:

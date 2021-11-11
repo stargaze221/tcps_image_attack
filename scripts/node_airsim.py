@@ -205,19 +205,27 @@ def run_airsim_node():
             reset(client)
 
 
-        try:
-            train_episode_done = rospy.get_param('episode_done')
-        except:
-            train_episode_done = False
-        if train_episode_done and t_step>FREQ_LOW_LEVEL*3:
-            if n_reset == 0:
-                reset(client)
-                n_reset = 1
-                t_step = 0
-                rospy.set_param('done_ack', True)
-            else:
-                n_reset = 0
-            
+        
+
+        # Condition 1: if !done_ack & episode_done then done_ack=True
+
+        # Condition 2: if done_ack & !episode_done then done_ack=False
+
+        # Condition 3: if done_ack & episode_done then done_ack=True
+
+        # Condition 4: if !done_ack & !episode_done then done_ack=False
+
+        if not(rospy.get_param('done_ack')) and rospy.get_param('episode_done'):
+            reset(client)
+            t_step = 0
+            rospy.set_param('done_ack', True)
+        elif rospy.get_param('done_ack') and not(rospy.get_param('episode_done')):
+            rospy.set_param('done_ack', False)
+        elif rospy.get_param('done_ack') and rospy.get_param('episode_done'):
+            print('keep ack true')
+        elif not(rospy.get_param('done_ack')) and not(rospy.get_param('episode_done')):
+            print('keep ack false')
+                 
             
         
 
