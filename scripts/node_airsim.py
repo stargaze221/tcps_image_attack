@@ -221,10 +221,10 @@ def run_airsim_node():
             rospy.set_param('done_ack', True)
         elif rospy.get_param('done_ack') and not(rospy.get_param('episode_done')):
             rospy.set_param('done_ack', False)
-        elif rospy.get_param('done_ack') and rospy.get_param('episode_done'):
-            print('keep ack true')
-        elif not(rospy.get_param('done_ack')) and not(rospy.get_param('episode_done')):
-            print('keep ack false')
+        # elif rospy.get_param('done_ack') and rospy.get_param('episode_done'):
+        #     print('keep ack true')
+        # elif not(rospy.get_param('done_ack')) and not(rospy.get_param('episode_done')):
+        #     print('keep ack false')
                  
             
         
