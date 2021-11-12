@@ -350,7 +350,7 @@ if __name__ == '__main__':
             writer.add_scalar('train/loss_actor', sum_loss_actor/logging_count, iteration)
             writer.add_scalar('train/episode', n_episode, iteration)
 
-            log_count = 0
+            logging_count = 0
             sum_loss_image_attack = 0
             sum_loss_sys_id = 0
             sum_loss_actor = 0

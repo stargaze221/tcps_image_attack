@@ -31,7 +31,7 @@ SETTING.update({'N_MINIBATCH_IMG':5, 'N_MINIBATCH_DDPG':8, 'N_WINDOW':32})
 SETTING.update({'N_SingleTrajectoryBuffer':1000, 'N_TransitionBuffer':1000, 'N_ImageBuffer':5000})
 
 # Image attack loss function parameters
-SETTING.update({'LAMBDA_COORD':0.001, 'LAMBDA_NOOBJ':0.001, 'LAMBDA_L2':100, 'LAMBDA_Var':1})
+SETTING.update({'LAMBDA_COORD':0.001, 'LAMBDA_NOOBJ':0.001, 'LAMBDA_L2':10, 'LAMBDA_Var':1})
 
 # Reward Choice
 SETTING.update({'reward_function': 'positive_distance'})
