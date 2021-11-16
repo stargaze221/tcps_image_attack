@@ -81,6 +81,8 @@ def run_airsim_node():
 
     n_reset = 0
 
+    rospy.set_param('episode_done', False)
+
 
     rospy.set_param('done_ack', False)
 
