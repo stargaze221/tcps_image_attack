@@ -54,7 +54,7 @@ def reset(client):
     pose.position.z_val += np.random.uniform(-5, -2)    #random [-5, 2]#
     pose.position.y_val += np.random.uniform(-5.0, 5.0) #random [-2.5, 2.5]# 
     client.simSetVehiclePose(pose, False)  # Random initial position
-    client.confirmConnection()
+    #client.confirmConnection()
     client.enableApiControl(True)
 
 
@@ -67,21 +67,12 @@ def run_airsim_node():
 
     ### State Values ###
     ON_FLIGHT = False
-    bool_reset_msg = Bool()
-    bool_reset_msg.data = False
-    done_val = 0
-    collision_val = 0
     COUNT_ERROR = 0
     vx = 0   # commands to AirSim
     vy = 0   # commands to AirSim
     vz = 0   # commands to AirSim
     yaw_rate = 0  # commands to AirSim
-    DONE = False
     t_step = 0
-
-    n_reset = 0
-
-
     rospy.set_param('done_ack', False)
 
     # rosnode node initialization
@@ -99,19 +90,20 @@ def run_airsim_node():
     # publishers init.
     pub_camera_frame = rospy.Publisher('/airsim_node/camera_frame', Image, queue_size=1)
     pub_state_obs_values = rospy.Publisher('/airsim_node/state_obs_values', Float32MultiArray, queue_size=1)
+
     # msg init. the msg is to send out state value array.
     msg_mat = Float32MultiArray()
     msg_mat.layout.dim.append(MultiArrayDimension())
     msg_mat.layout.dim.append(MultiArrayDimension())
     msg_mat.layout.dim[0].label = "height"
     msg_mat.layout.dim[1].label = "width"
+
     # a bridge from cv2 (np.uint8 image) image to ROS image
     mybridge = CvBridge()
     # Running rate
     rate=rospy.Rate(FREQ_LOW_LEVEL)
 
     
-
     
     ##############################
     ### Instructions in a loop ###
