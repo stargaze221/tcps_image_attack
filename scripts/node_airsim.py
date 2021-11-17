@@ -73,6 +73,12 @@ def run_airsim_node():
     vz = 0   # commands to AirSim
     yaw_rate = 0  # commands to AirSim
     t_step = 0
+
+    n_reset = 0
+
+    rospy.set_param('episode_done', False)
+
+
     rospy.set_param('done_ack', False)
 
     # rosnode node initialization
