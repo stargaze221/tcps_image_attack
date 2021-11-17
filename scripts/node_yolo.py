@@ -45,6 +45,11 @@ def fnc_target_callback(msg):
     global TARGET_RECEIVED
     TARGET_RECEIVED = msg
 
+KF_BOX_RECEIVED = None
+def fnc_target_callback7(msg):
+    global KF_BOX_RECEIVED
+    KF_BOX_RECEIVED = msg
+
 
 
 if __name__=='__main__':
@@ -58,6 +63,7 @@ if __name__=='__main__':
     sub_bool_image_attack = rospy.Subscriber('/key_teleop/image_attack_bool', Bool, fnc_callback5)
     sub_attacked_image = rospy.Subscriber('/attack_generator_node/attacked_image', Image, fnc_callback6)   # subscriber init.
     sub_target = rospy.Subscriber('/decision_maker_node/target', Twist, fnc_target_callback)
+    sub_kf_box = rospy.Subscriber('/controller_node/kf_box', Twist, fnc_target_callback7)
 
     # publishers init.
     pub_yolo_prediction = rospy.Publisher('/yolo_node/yolo_predictions', Float32MultiArray, queue_size=10)   # publisher1 initialization.
@@ -90,11 +96,20 @@ if __name__=='__main__':
                 np_im = np.frombuffer(IMAGE_RECEIVED.data, dtype=np.uint8).reshape(IMAGE_RECEIVED.height, IMAGE_RECEIVED.width, -1)
 
             np_im = np.array(np_im)
+
+            #print('KF_BOX_RECEIVED', KF_BOX_RECEIVED)
             with torch.no_grad():
                 x_image = torch.FloatTensor(np_im).to(DEVICE).permute(2, 0, 1).unsqueeze(0)/255
-                if TARGET_RECEIVED is not None:
+                if TARGET_RECEIVED is not None and KF_BOX_RECEIVED is None:
                     action = (TARGET_RECEIVED.linear.x, TARGET_RECEIVED.linear.y, TARGET_RECEIVED.linear.z, TARGET_RECEIVED.angular.x)
                     cv2_images_uint8, prediction_np = YOLO_MODEL.draw_image_w_prediction_and_target(x_image.detach(), action)
+                elif TARGET_RECEIVED is not None and KF_BOX_RECEIVED is not None:
+                    action = (TARGET_RECEIVED.linear.x, TARGET_RECEIVED.linear.y, TARGET_RECEIVED.linear.z, TARGET_RECEIVED.angular.x)
+                    kf_box = (KF_BOX_RECEIVED.linear.x, KF_BOX_RECEIVED.linear.y, KF_BOX_RECEIVED.linear.z, KF_BOX_RECEIVED.angular.x)
+                    cv2_images_uint8, prediction_np = YOLO_MODEL.draw_image_w_prediction_and_target_and_kf_box(x_image.detach(), action, kf_box)
+                elif TARGET_RECEIVED is None and KF_BOX_RECEIVED is not None:
+                    kf_box = (KF_BOX_RECEIVED.linear.x, KF_BOX_RECEIVED.linear.y, KF_BOX_RECEIVED.linear.z, KF_BOX_RECEIVED.angular.x)
+                    cv2_images_uint8, prediction_np = YOLO_MODEL.draw_image_w_prediction_and_kf_box(x_image.detach(), kf_box)
                 else:
                     cv2_images_uint8, prediction_np = YOLO_MODEL.draw_image_w_predictions(x_image.detach())
             

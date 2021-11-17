@@ -61,6 +61,22 @@ class YoloWrapper:
 
         return cv2_images_uint8, np.array(np_pred)
 
+    def draw_image_w_prediction_and_target_and_kf_box(self, torch_image, action, kf_box):
+        cv2_images_uint8, np_pred = self.draw_image_w_prediction_and_target(torch_image, action)
+
+        kf_box = np.clip(kf_box, 5, 448-5)
+
+        plot_one_box(kf_box, cv2_images_uint8, color=(10, 10, 10), label='kf box')
+        return cv2_images_uint8, np_pred
+
+    def draw_image_w_prediction_and_kf_box(self, torch_image, kf_box):
+        cv2_images_uint8, np_pred = self.draw_image_w_predictions(torch_image, show=False, wait=1000)
+
+        kf_box = np.clip(kf_box, 5, 448-5)
+        plot_one_box(kf_box, cv2_images_uint8, color=(10, 10, 10), label='kf box')
+        return cv2_images_uint8, np_pred
+
+
 
 if __name__ == "__main__":
     from PIL import Image
