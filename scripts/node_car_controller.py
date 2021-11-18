@@ -57,6 +57,8 @@ if __name__=='__main__':
     # Kalman filter tracker
     tracker = Tracker()
 
+    
+
     n_prediction_in_row = 0
 
     ##############################
@@ -111,7 +113,6 @@ if __name__=='__main__':
                         n_prediction_in_row = 0
 
                     else:
-                        print("No car in detection")
                         tracker.predict_only() # Predict KF                        
                         n_prediction_in_row += 1
             else:
