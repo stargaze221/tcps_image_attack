@@ -58,6 +58,8 @@ def reward_function(state_obs, t_steps):
     elif speed < 0.01 and t_steps > FREQ_HIGH_LEVEL*3:
         print('Not moving! Stopped!')
         done = 1
+    elif dist2tgt < 1:
+        print('Reach to the target')
     else:
         done = 0
 
