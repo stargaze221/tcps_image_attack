@@ -162,7 +162,7 @@ if __name__=='__main__':
         error_y = tgt_box.y - CTR_Y_POS
         error_z = (tgt_box.z)**0.5 - (AREA_TGT)**0.5
 
-        cmd_vx =  P_gain * error_x*0.7    # side move (left or right)
+        cmd_vx =  P_gain * error_x*0.5    # side move (left or right)
         cmd_vy = -P_gain * error_y   # vertical move (up or down)
         cmd_vz = -P_gain * error_z*0.7   # front move (front or backward)
 

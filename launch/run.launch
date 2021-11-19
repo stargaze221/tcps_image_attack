@@ -1,0 +1,13 @@
+<launch>
+    <param name="name" value="Hills_11_16_2021_12_19_40"/>
+    <node pkg="tcps_image_attack" type="node_airsim.py" name="airsim_node" output="screen">
+    </node>
+    <node pkg="tcps_image_attack" type="node_yolo.py" name="yolo_node" output="screen">
+    </node>
+    <node pkg="tcps_image_attack" type="node_controller.py" name="controller_node" output="screen">
+    </node>
+    <node pkg="tcps_image_attack" type="node_image_attacker.py" name="image_attack_node" output="screen">
+    </node>
+    <node pkg="tcps_image_attack" type="node_highlevel_decision_maker.py" name="high_level_decision_maker" output="screen">
+    </node>
+</launch>
