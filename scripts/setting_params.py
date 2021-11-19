@@ -6,7 +6,7 @@ import torch
 
 SETTING = {}
 SETTING.update({'name': 'okokok'})
-SETTING.update({'env_name': 'env1'})
+SETTING.update({'env_name': 'env3'})
 
 
 # Yolo v5 parameter file path
@@ -34,19 +34,19 @@ SETTING.update({'N_SingleTrajectoryBuffer':1000, 'N_TransitionBuffer':1000, 'N_I
 SETTING.update({'LAMBDA_COORD':0.001, 'LAMBDA_NOOBJ':0.001, 'LAMBDA_L2':10, 'LAMBDA_Var':1})
 
 # Reward Choice
-#SETTING.update({'reward_function': 'positive_distance'})
+SETTING.update({'reward_function': 'positive_distance'})
 #SETTING.update({'reward_function': 'negative_distance'})
 #SETTING.update({'reward_function': 'move-up'})
 #SETTING.update({'reward_function': 'move-down'})
 #SETTING.update({'reward_function': 'move-left'})
 #SETTING.update({'reward_function': 'move-right'})
-#SETTING.update({'reward_function': 'car_go_to_target'})
-SETTING.update({'reward_function': 'collision'})
+#SETTING.update({'reward_function': 'go_to_target'})
+#SETTING.update({'reward_function': 'collision'})
 
 
 
 # N_Episodes
-SETTING.update({'N_Episodes': 50})
+SETTING.update({'N_Episodes': 300})
 
 
 
