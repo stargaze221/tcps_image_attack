@@ -170,7 +170,7 @@ if __name__ == '__main__':
 
     # State observation variables
 
-    prev_np_image = np.zeros(SETTING['encoder_image_size'])
+    prev_np_image = np.zeros((SETTING['encoder_image_size'][0],SETTING['encoder_image_size'][1],3))
     prev_msg_image = mybridge.cv2_to_imgmsg(prev_np_image)
 
 
