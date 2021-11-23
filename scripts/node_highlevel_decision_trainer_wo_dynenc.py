@@ -94,28 +94,33 @@ if __name__ == '__main__':
             ####################################################
             if transition_memory.len > SETTING['N_WINDOW']:
 
-                # sample minibach
-                s_arr, a_arr, r_arr, s1_arr, done_arr = transition_memory.sample(SETTING['N_MINIBATCH_DDPG'])
+                try:
 
-                # update the models
-                loss_sys_id = 0
-                loss_actor, loss_critic = rl_agent.update(s_arr, a_arr, r_arr, s1_arr, done_arr)
+                    # sample minibach
+                    s_arr, a_arr, r_arr, s1_arr, done_arr = transition_memory.sample(SETTING['N_MINIBATCH_DDPG'])
 
-                # if n_iteration > 2000:
-                #     loss_actor, loss_critic = rl_agent.update(s_arr, a_arr, r_arr, s1_arr, done_arr)
-                # else:
-                #     loss_actor = 0
-                #     loss_critic = 0
+                    # update the models
+                    loss_sys_id = 0
+                    loss_actor, loss_critic = rl_agent.update(s_arr, a_arr, r_arr, s1_arr, done_arr)
 
-                # pack up loss values
-                loss_monitor_np = np.array([[loss_sys_id, loss_actor, loss_critic]])
-                msg_mat.layout.dim[0].size = loss_monitor_np.shape[0]
-                msg_mat.layout.dim[1].size = loss_monitor_np.shape[1]
-                msg_mat.layout.dim[0].stride = loss_monitor_np.shape[0]*loss_monitor_np.shape[1]
-                msg_mat.layout.dim[1].stride = loss_monitor_np.shape[1]
-                msg_mat.layout.data_offset = 0
-                msg_mat.data = loss_monitor_np.flatten().tolist()
-                pub_loss_monitor.publish(msg_mat)
+                    # if n_iteration > 2000:
+                    #     loss_actor, loss_critic = rl_agent.update(s_arr, a_arr, r_arr, s1_arr, done_arr)
+                    # else:
+                    #     loss_actor = 0
+                    #     loss_critic = 0
+
+                    # pack up loss values
+                    loss_monitor_np = np.array([[loss_sys_id, loss_actor, loss_critic]])
+                    msg_mat.layout.dim[0].size = loss_monitor_np.shape[0]
+                    msg_mat.layout.dim[1].size = loss_monitor_np.shape[1]
+                    msg_mat.layout.dim[0].stride = loss_monitor_np.shape[0]*loss_monitor_np.shape[1]
+                    msg_mat.layout.dim[1].stride = loss_monitor_np.shape[1]
+                    msg_mat.layout.data_offset = 0
+                    msg_mat.data = loss_monitor_np.flatten().tolist()
+                    pub_loss_monitor.publish(msg_mat)
+
+                except:
+                    print('error during the udpate!')
 
         if n_iteration % (FREQ_HIGH_LEVEL+1) ==0:
             try:

@@ -52,67 +52,31 @@ def reward_function(state_obs, t_steps):
     collision = dist2tgt_speed_collision[2]
 
     # Check reset condition and reset environment
-    if dist2tgt < 16 and speed < 0.1 and t_steps > FREQ_HIGH_LEVEL*3:    
-        print('Reached to the target and stopped!')
-        done = 1
-    elif dist2tgt < 10 and t_steps > FREQ_HIGH_LEVEL*3:
-        print('Close to the target')
-        done = 1
-    elif dist2tgt > 40 and t_steps > FREQ_HIGH_LEVEL*3:
-        print('Target lost!')
-        done = 1    
-    elif collision > 0.5 and t_steps > FREQ_HIGH_LEVEL*3:
+    if collision > 0.5 and t_steps > FREQ_HIGH_LEVEL*3:
         print('Collision!')
         done = 1
     elif speed < 0.01 and t_steps > FREQ_HIGH_LEVEL*3:
         print('Not moving! Stopped!')
         done = 1
+    elif dist2tgt < 1:
+        print('Reach to the target')
     else:
         done = 0
 
-    # Calculate the reward 
-    if SETTING['reward_function'] == 'positive_distance':
-        if done > 0.5 and collision < 0.5:  
-            reward = dist2tgt
-        elif done > 0.5 and collision > 0.5: 
-            reward = dist2tgt
+    # Calculate the reward
+
+    if SETTING['reward_function'] == 'go_to_target':
+        if done > 0.5 and collision > 0.5:  
+            reward = -dist2tgt
         else:
             reward = speed
-    elif SETTING['reward_function'] == 'negative_distance':
-        if done > 0.5 and collision < 0.5:
-            reward = -dist2tgt
-        elif done > 0.5 and collision > 0.5: 
-            reward = -dist2tgt
+
+    else:
+        if done > 0.5 and collision > 0.5:  
+            reward = 10
         else:
-            reward = - speed
-    elif SETTING['reward_function'] == 'move-up':
-        if done > 0.5 and collision < 0.5:
-            reward = -position[2]
-        elif done > 0.5 and collision > 0.5:
-            reward = -position[2]
-        else:
-            reward = -linear_velocity[2]
-    elif SETTING['reward_function'] == 'move-down':
-        if done > 0.5 and collision < 0.5:
-            reward = position[2]
-        elif done > 0.5 and collision > 0.5:
-            reward = position[2]
-        else:
-            reward = linear_velocity[2]
-    elif SETTING['reward_function'] == 'move-left':
-        if done > 0.5 and collision < 0.5:
-            reward = position[1]
-        elif done > 0.5 and collision > 0.5:
-            reward = position[1]
-        else:
-            reward = linear_velocity[1]
-    elif SETTING['reward_function'] == 'move-right':
-        if done > 0.5 and collision < 0.5:
-            reward = -position[1]
-        elif done > 0.5 and collision > 0.5:
-            reward = -position[1]
-        else:
-            reward = -linear_velocity[1]
+            reward = speed
+    
     return reward, done, collision
 
 
@@ -124,7 +88,7 @@ if __name__ == '__main__':
     rospy.set_param('episode_done', False)
 
     # rosnode node initialization
-    rospy.init_node('high_level_decision_maker_wo_dynenc')
+    rospy.init_node('high_level_decision_maker')
 
     # subscriber init.
     sub_image = rospy.Subscriber('/airsim_node/camera_frame', Image, fnc_img_callback)
@@ -167,7 +131,7 @@ if __name__ == '__main__':
         setting_text += '\n'
     writer.add_text('setting', setting_text)
 
-    # State observation variables
+    # State variables
 
     prev_np_image = np.zeros((SETTING['encoder_image_size'][0],SETTING['encoder_image_size'][1],3))
     prev_msg_image = mybridge.cv2_to_imgmsg(prev_np_image)
@@ -330,7 +294,7 @@ if __name__ == '__main__':
                 prev_np_image = np.zeros(SETTING['encoder_image_size'])
                 prev_msg_image = mybridge.cv2_to_imgmsg(prev_np_image)
 
-            torch.cuda.empty_cache() 
+            torch.cuda.empty_cache()
 
 
         if LOSS_MON_IMAGE_TRAIN_RECEIVED is not None and LOSS_MON_HIGHLEVEL_TRAIN_RECEIVED is not None:
