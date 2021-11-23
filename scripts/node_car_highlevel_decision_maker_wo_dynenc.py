@@ -60,6 +60,9 @@ def reward_function(state_obs, t_steps):
         done = 1
     elif dist2tgt < 1:
         print('Reach to the target')
+    elif t_steps > 500:
+        print('Time passed!')
+        done = 1
     else:
         done = 0
 
