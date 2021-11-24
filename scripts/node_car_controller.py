@@ -176,10 +176,15 @@ if __name__=='__main__':
         vel_cmd_tracking.z = cmd_vz  # if target is small then generate positive cmd_vz
 
         ### Publish ###
+        print('vel_est', vel_est)
         pub_vel_est.publish(vel_est)
+        print('body_angle', body_angle)
         pub_body_angle.publish(body_angle)
+        print('tgt_box', tgt_box)
         pub_tgt_box.publish(tgt_box)
+        print('vel_cmd_tracking', vel_cmd_tracking)
         pub_vel_cmd.publish(vel_cmd_tracking)
+        print('kf_box', kf_box)
         pub_kf_box.publish(kf_box)
 
         try:
