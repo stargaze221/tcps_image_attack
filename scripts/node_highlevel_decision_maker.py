@@ -2,7 +2,7 @@
 
 # Estimate state and generates target (or action) for image attacker
 
-import rospy, roslaunch
+import rospy
 from std_msgs.msg import Float32MultiArray        # See https://gist.github.com/jarvisschultz/7a886ed2714fac9f5226
 from std_msgs.msg import MultiArrayDimension      # See http://docs.ros.org/api/std_msgs/html/msg/MultiArrayLayout.html
 from std_msgs.msg import Bool

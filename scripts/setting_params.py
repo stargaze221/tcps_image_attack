@@ -39,9 +39,9 @@ SETTING.update({'LAMBDA_COORD':0.001, 'LAMBDA_NOOBJ':0.001, 'LAMBDA_L2':10, 'LAM
 #SETTING.update({'reward_function': 'move-up'})
 #SETTING.update({'reward_function': 'move-down'})
 #SETTING.update({'reward_function': 'move-left'})
-#SETTING.update({'reward_function': 'move-right'})
+SETTING.update({'reward_function': 'move-right'})
 #SETTING.update({'reward_function': 'go_to_target'})
-SETTING.update({'reward_function': 'collision'})
+#SETTING.update({'reward_function': 'collision'})
 
 
 
